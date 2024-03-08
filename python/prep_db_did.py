@@ -2,12 +2,12 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import os
 import sys
-sys.path.append('code/jmp_github/python/')
+sys.path.append('code/firm_invest/python/')
 from data_functions import convert_to_datetime
 
 # Load the data
 cap_struct = pd.read_csv('data/csv/cap_struct.csv')
-df = pd.read_csv('data/csv/db_reg.csv')
+df = pd.read_csv('data/csv/db_reg.csv') #created by pre_process_dta.R
 
 # Convert year_q (currently an int) to datetime at the quarterly frequency
 df['year_q'] = df['year_q'].apply(convert_to_datetime).dt.to_period('Q')
@@ -21,4 +21,7 @@ df_merge = pd.merge(df, cap_struct, on = ['GVKEY', 'year_q'], how = 'left')
 
 # Save df_merge
 df_merge.to_csv('data/csv/db_did.csv', index = False)
+
+# What is the format of year_q?
+print(df_merge['year_q'].head())
 

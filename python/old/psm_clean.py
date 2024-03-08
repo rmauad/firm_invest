@@ -2,15 +2,17 @@
 
 import pandas as pd
 import numpy as np
-# import matplotlib.pyplot as plt
-# import os
-# import sys
-# sys.path.append('code/firm_invest/python/')
-# from data_functions import convert_to_datetime
-# import requests as rq
+import matplotlib.pyplot as plt
+import os
+import sys
+sys.path.append('code/jmp_github/python/')
+from data_functions import convert_to_datetime
+import requests as rq
 
 # Load the data
-db_did = pd.read_csv('data/csv/db_did.csv') # created by prep_db_did.py
+db_did = pd.read_csv('data/csv/db_did.csv')
+# db_did['date'] = db_did['year_q'].apply(convert_to_datetime)
+# db_did['date'] = pd.to_datetime(db_did['date'])
 
 # Generating variables "debt issuance"
 db_did['debt_issuance'] = db_did['dltisy'] - db_did['dltry'] + db_did['dlcchy']
@@ -21,10 +23,12 @@ db_did_na_clean = db_did.dropna(subset = ['debt_issuance'])
 # Select firms in the states of TX and LA
 db_did_na_clean['intan_at'] = db_did_na_clean['org_cap_comp'] / db_did_na_clean['atq']
 db_did_na_clean['ter'] = db_did_na_clean.groupby(['year_q'])['intan_at'].transform(lambda x: pd.qcut(x, 3, labels = [1, 2, 3]))
+#db_did['ter'] = pd.qcut(db_did['intan_at'], 3, labels = [1, 2, 3])
 
 # Generate a dummy = 1 for firms in TX and LA
 db_did_na_clean['treated'] = 0
 db_did_na_clean.loc[(db_did_na_clean['state'] == 'TX') | (db_did_na_clean['state'] == 'LA'), 'treated'] = 1
+
 
 # Generate the metrics to be used in the PSM 
 # (average of investment growth, investment level, 
@@ -33,6 +37,8 @@ db_did_na_clean.loc[(db_did_na_clean['state'] == 'TX') | (db_did_na_clean['state
 # Generate the log change between quarters for each firm
 
 db_did_na_clean['dln_inv'] = db_did_na_clean.groupby(['GVKEY'])['capxy'].transform(lambda x: np.log(x) - np.log(x.shift(1)))
+# db_did['dln_inv'] = db_did['dln_inv'].apply(lambda x: x if x < 1 else 1)
+# db_did['dln_inv'] = db_did['dln_inv'].apply(lambda x: x if x > -1 else -1)
 db_did_na_clean['dln_inv'] = db_did_na_clean['dln_inv'].apply(lambda x: x if x != float('inf') else 0)
 db_did_na_clean['dln_inv'] = db_did_na_clean['dln_inv'].apply(lambda x: x if x != float('-inf') else 0)
 db_did_na_clean['dln_inv'] = db_did_na_clean['dln_inv'].apply(lambda x: x if x != float('nan') else 0)
@@ -47,7 +53,7 @@ filtered_db = db_did_na_clean[db_did_na_clean['year_q'] < '1996Q4']
 mean_values = filtered_db.groupby('GVKEY')[metrics].mean()
 db_did_merge = db_did_na_clean.merge(mean_values, on='GVKEY', how='left', suffixes=('', '_mean'))
 
-#region Generate the propensity score
+# %% Generate the propensity score
 from sklearn.linear_model import LogisticRegression
 metrics_mean = ['dln_inv_mean', 'capxy_mean', 'atq_mean', 'debt_at_mean', 'cash_at_mean', 'tobin_q_mean']
 db_did_clean = db_did_merge.dropna(subset=metrics_mean).copy() # .copy() guarantees that a new independent dataframe is created
@@ -63,49 +69,21 @@ from sklearn.neighbors import NearestNeighbors
 
 treatment = db_did_clean[db_did_clean['treated'] == 1]
 control = db_did_clean[db_did_clean['treated'] == 0]
-#print unique firms in the treatment and control groups
+# print number of unique firms in treatment
+
+
+nn = NearestNeighbors(n_neighbors=1, algorithm='ball_tree').fit(control[['propensity_score']])
+distances, indices = nn.kneighbors(treatment[['propensity_score']])
+
+matched_control = control.iloc[indices.flatten()]
+matched_db = pd.concat([treatment, matched_control])
 print(treatment['GVKEY'].nunique())
-print(control['GVKEY'].nunique())
-
-#endregion
-
-# Initialize an empty list to hold the matched DataFrames
-matched_pairs_list = []
-
-# Get unique time periods
-unique_quarter = np.sort(db_did_clean['year_q'].unique())
-
-for quarter in unique_quarter:
-    # Filter treatment and control groups for the current time period
-    treatment_period = db_did_clean[(db_did_clean['treated'] == 1) & (db_did_clean['year_q'] == quarter)]
-    control_period = db_did_clean[(db_did_clean['treated'] == 0) & (db_did_clean['year_q'] == quarter)]
-
-    # Perform matching if both treatment and control groups are non-empty
-    if not treatment_period.empty and not control_period.empty:
-        nn = NearestNeighbors(n_neighbors=2, algorithm='ball_tree').fit(control_period[['propensity_score']])
-        distances, indices = nn.kneighbors(treatment_period[['propensity_score']])
-        
-        # Using indices to select matched controls. Ensure indices are used to index within the filtered control DataFrame
-        matched_control = control_period.iloc[indices.flatten()]
-        
-        # Combine the current period's treatment and matched control
-        matched_pairs = pd.concat([treatment_period, matched_control])
-        
-        # Append the combined DataFrame to the list
-        matched_pairs_list.append(matched_pairs)
-
-# Concatenate all matched pairs across time periods
-matched_db = pd.concat(matched_pairs_list)
 
 # Save the database
 matched_db.to_csv('data/csv/psm_clean.csv', index=False)
 
-print(matched_db['treated'].value_counts())
-print(matched_db[matched_db['treated'] == 1]['GVKEY'].nunique())
-print(matched_db[matched_db['treated'] == 0]['GVKEY'].nunique())
-
-print(unique_quarter)
-matched_db.columns
+print(matched_control.shape)
+print(treatment.shape)
 # print(matched_control['GVKEY'].nunique())
 # print(db_did_clean['propensity_score'].describe())
 # print(db_did_clean['year_q'].describe())

@@ -2,7 +2,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import os
 import sys
-sys.path.append('code/jmp_github/python/')
+#sys.path.append('code/firm_invest/python/')
 from data_functions import convert_to_datetime
 
 # Load the data
@@ -33,8 +33,8 @@ df_merge['year_q'] = df_merge['year_q'].astype(str)
 df_merge['ter_q'] = df_merge.groupby('year_q')['K_int'].transform(lambda x: pd.qcut(x, 3, labels = [1, 2, 3]))
 
 # Filter for selected firms
-intan_firms = df_merge[df_merge['ter_q'] == 3]
-tang_firms = df_merge[df_merge['ter_q'] == 1]
+intan_firms = df_merge[df_merge['ter'] == 3]
+tang_firms = df_merge[df_merge['ter'] == 1]
 
 # Group by time period and calculate mean
 debt_at_intan = intan_firms.groupby('date')['debt_at'].mean()

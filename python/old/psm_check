@@ -14,9 +14,9 @@ control = psm[psm['treated'] == 0]
 debt_issuan_treat = treatment.groupby('year_q')['debt_issuance'].mean()
 debt_issuan_control = control.groupby('year_q')['debt_issuance'].mean()
 start_date = pd.to_datetime('1990-01-01')
-end_date = pd.to_datetime('20-03-01')
+end_date = pd.to_datetime('2020-03-01')
 
-debt_issuance_control = control.dropna(subset=['debt_issuance']).groupby('year_q')['debt_issuance'].mean()
+#debt_issuance_control = control.dropna(subset=['debt_issuance']).groupby('year_q')['debt_issuance'].mean()
 
 # print columns year_q, GVKEY, and debt_issuance for control for 1996Q3
 print(control[control['year_q'] == '2020Q4'][['year_q', 'GVKEY', 'debt_issuance', 'capxy']])
@@ -27,13 +27,20 @@ print(control[control['year_q'] == '2015Q1'][['year_q', 'GVKEY', 'debt_issuance'
 
 
 # Plot the average of debt issuance for treated and control firms
-debt_issuan_treat.plot(kind='line', label = 'Treated Firms')
-debt_issuan_control.plot(kind='line', label = 'Control Firms')
+debt_issuan_treat_filtered = debt_issuan_treat.loc[:'2005:Q4']
+debt_issuan_control_filtered = debt_issuan_control.loc[:'2005:Q4']
+debt_issuan_treat_filtered.plot(kind='line', label = 'Treated Firms')
+debt_issuan_control_filtered.plot(kind='line', label = 'Control Firms')
 plt.title('Average Debt to Total Assets')
 plt.xlabel('Quarter')
 plt.ylabel('Debt to Total Assets')
 plt.legend()
 plt.show()
+
+# print the average of debt issuance for treated and control firms between 1994 and 2004
+print(debt_issuan_treat.loc['1994':'2004'])
+print(debt_issuan_control.loc['1994':'2004'])
+
 
 plt.figure(figsize=(10, 6))
 plt.hist(treatment['debt_at'], alpha=0.5, label='Investment Treatment')
