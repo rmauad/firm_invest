@@ -19,19 +19,55 @@ df_intan = df[df['ter'] == 3].copy()
 # print(sorted_columns)
 
 # Aggregate the database by year
-df['category'] = df['tercile'].apply(lambda x: 'Tangible' if x == 1 else ('Intangible' if x == 3 else 'other'))
-df_year = df.groupby(['GVKEY', 'year']).agg({'debt_issuance': 'sum', 'debt_at': 'mean', 'category': 'first'}).reset_index()
-df_year_filtered = df_year[(df_year['year'] >= 1995) & (df_year['year'] <= 1999) & (df_year['category'] != 'other')]
+df_tang['category'] = df_tang['tercile'].apply(lambda x: 'Tangible' if x == 1 else ('Intangible' if x == 3 else 'other'))
+df_tang['group'] = df_tang['treated'].map({1: 'Treated', 0: 'Control'})
+df_year_tang = df_tang.groupby(['GVKEY', 'year']).agg({'debt_issuance': 'sum', 'debt_at': 'mean', 'category': 'first', 'group': 'first'}).reset_index()
+percentile_98 = df_year_tang['debt_issuance'].quantile(0.98)
+df_year_tang_filtered = df_year_tang[(df_year_tang['year'] >= 1995) & (df_year_tang['year'] <= 1999) & (df_year_tang['category'] != 'other') & (df_year_tang['debt_issuance'] < percentile_98)]
 
-# Create violin plots of debt issuance for tangible and intangible firms
+# Aggregate the database by year
+df_intan['category'] = df_intan['tercile'].apply(lambda x: 'Tangible' if x == 1 else ('Intangible' if x == 3 else 'other'))
+df_intan['group'] = df_intan['treated'].map({1: 'Treated', 0: 'Control'})
+df_year_intan = df_intan.groupby(['GVKEY', 'year']).agg({'debt_issuance': 'sum', 'debt_at': 'mean', 'category': 'first', 'group': 'first'}).reset_index()
+percentile_98 = df_year_intan['debt_issuance'].quantile(0.98)
+df_year_intan_filtered = df_year_intan[(df_year_intan['year'] >= 1995) & (df_year_intan['year'] <= 1999) & (df_year_intan['category'] != 'other') & (df_year_intan['debt_issuance'] < percentile_98)]
+
+
+########################################################################
+# Print the debt issuance for 1997 and 1998 from df_year_tang_filtered #
+########################################################################
+
+#print(df_year_tang_filtered.loc[df_year_tang_filtered['year'].isin([1997])])
+df_1997 = df_year_tang_filtered[df_year_tang_filtered['year'] == 1995]
+
+# Sort the filtered DataFrame by the debt issuance column in descending order and select the top 5
+top5_debt_issuance_1997 = df_1997.sort_values(by='debt_issuance', ascending=False).head(5)
+
+# Print the top 5 observations
+print(top5_debt_issuance_1997)
+
+########################################################################    
+########################################################################
+
+# Create violin plots of debt issuance for tangible firms
 plt.figure(figsize=(12, 6))
-sns.violinplot(x='year', y='debt_issuance', hue = 'category', data=df_year_filtered)
+sns.violinplot(x='year', y='debt_issuance', hue = 'group', data=df_year_tang_filtered, split=True)
 plt.title('Debt Issuance by Firm type and Year')
 plt.xlabel('Years')
 plt.ylabel('Debt Issuance (million $)')
-#plt.show()
-plt.savefig('output/graphs/debt_issuance_violin.png')
+plt.show()
+#plt.savefig('output/graphs/debt_issuance_violin.png')
 
+# Create violin plots of debt issuance for intangible firms
+plt.figure(figsize=(12, 6))
+#ax = sns.violinplot(x='year', y='debt_issuance', hue = 'group', data=df_year_intan_filtered, split=True)
+sns.violinplot(x='year', y='debt_issuance', hue = 'group', data=df_year_intan_filtered, split=True)
+plt.title('Debt Issuance by Firm type and Year')
+plt.xlabel('Years')
+plt.ylabel('Debt Issuance (million $)')
+#ax.set_ylim(-10000, 20000)
+plt.tight_layout()
+plt.show()
 
 
 # Create a box and whiskers plot of debt issuance for tangible and intangible firms
@@ -42,8 +78,6 @@ plt.xlabel('Years')
 plt.ylabel('Debt Issuance (million $)')
 plt.show()
 plt.savefig('output/graphs/debt_issuance_boxplot.png')
-
-
 
 
 #print(df_year.head())

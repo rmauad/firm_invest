@@ -19,7 +19,7 @@ df_intan = df[df['ter'] == 3].copy()
 # print(sorted_columns)
 
 # Aggregate the database by year
-df['category'] = df['tercile'].apply(lambda x: 'Tangible' if x == 1 else ('Intangible' if x == 3 else 'other'))
+df['category'] = df['quartile'].apply(lambda x: 'Tangible' if x == 1 else ('Intangible' if x == 4 else 'other'))
 df_year = df.groupby(['GVKEY', 'year']).agg({'debt_issuance': 'sum', 'debt_at': 'mean', 'category': 'first'}).reset_index()
 df_year_filtered = df_year[(df_year['year'] >= 1995) & (df_year['year'] <= 1999) & (df_year['category'] != 'other')]
 
@@ -29,8 +29,8 @@ sns.violinplot(x='year', y='debt_issuance', hue = 'category', data=df_year_filte
 plt.title('Debt Issuance by Firm type and Year')
 plt.xlabel('Years')
 plt.ylabel('Debt Issuance (million $)')
-#plt.show()
-plt.savefig('output/graphs/debt_issuance_violin.png')
+plt.show()
+#plt.savefig('output/graphs/debt_issuance_violin.png')
 
 
 
@@ -41,7 +41,7 @@ plt.title('Debt Issuance by Firm type and Year')
 plt.xlabel('Years')
 plt.ylabel('Debt Issuance (million $)')
 plt.show()
-plt.savefig('output/graphs/debt_issuance_boxplot.png')
+#plt.savefig('output/graphs/debt_issuance_boxplot.png')
 
 
 
