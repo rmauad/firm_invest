@@ -6,7 +6,7 @@ import statsmodels.formula.api as smf
 import linearmodels as lm
 import statsmodels.api as sm
 import sys
-sys.path.append('code/firm_invest/python/')
+sys.path.append('code/firm_invest/python/psm_did_event/')
 from data_functions import convert_to_datetime
 
 df = pd.read_csv('data/csv/psm_clean.csv') #created by psm_clean.py
