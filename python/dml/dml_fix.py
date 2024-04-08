@@ -17,7 +17,7 @@ df = pd.read_csv('data/csv/db_reg.csv') #created by pre_process_dta.R
 # Creating the variables to be used in the regressions
 df['log_assets_lag1'] = df.groupby('GVKEY')['atq'].transform(lambda x: np.log(x)).shift(1)
 df['log_assets_squared_lag1'] = df['log_assets_lag1']**2
-df['log_assets_lag2'] = df.groupby('GVKEY')['atq'].apply(np.log).shift(2)  
+df['log_assets_lag2'] = df.groupby('GVKEY')['atq'].transform(lambda x: np.log(x)).shift(2) 
 df['log_assets_squared_lag2'] = df['log_assets_lag2']**2
 df['debt_at_lag1'] = df.groupby('GVKEY')['debt_at'].shift(1)
 df['debt_at_squared_lag1'] = df['debt_at_lag1']**2
@@ -36,14 +36,6 @@ df['capex_squared_lag2'] = df['capex_lag2']**2
 df['sales_growth_squared_lag1'] = df['sales_growth_lag1']**2
 df['sales_growth_lag2'] = df.groupby('GVKEY')['sales_growth_lag1'].shift(1)
 df['sales_growth_squared_lag2'] = df['sales_growth_lag2']**2
-# df['log_sga_lag1'] = df.groupby('GVKEY')['xsgaq'].apply(np.log).shift(1)
-# df['log_sga_squared_lag1'] = df['log_sga_lag1']**2
-# df['log_sga_lag2'] = df.groupby('GVKEY')['xsgaq'].apply(np.log).shift(2)
-# df['log_sga_squared_lag2'] = df['log_sga_lag2']**2
-# df['log_rd_lag1'] = df.groupby('GVKEY')['xrdq'].apply(np.log).shift(1)
-# df['log_rd_squared_lag1'] = df['log_rd_lag1']**2
-# df['log_rd_lag2'] = df.groupby('GVKEY')['xrdq'].apply(np.log).shift(2)
-# df['log_rd_squared_lag2'] = df['log_rd_lag2']**2
 df['log_intan'] = df['org_cap_comp'].apply(np.log)
 df_clean = df.dropna()
 

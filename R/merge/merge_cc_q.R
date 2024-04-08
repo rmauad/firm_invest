@@ -33,7 +33,7 @@ comp_funda2_sel <- comp_funda2 %>%
 macro_q <- read.table("data/csv/Macro_controls_q.csv",sep = ",",header = TRUE)
 
 #comp_sel <- select(comp_funda2, GVKEY, cusip, datadate, fyr, sic, xsga, intan, at, ceq, dlc, dltt, ppegt, revt, che, lt, csho, prcc_f, sale, ib, dp, ppent, capx, pstkl, invt, emp, xintd, xint, fatb)
-comp_sel_q <- select(comp_fundq, GVKEY, cusip, datadate, fqtr, sic, xsgaq, intanq, atq, ceqq, dlcq, dlttq, ppegtq, revtq, cheq, ltq, cshoq, prccq, saleq, ibq, dpq, ppentq, capxy, pstkq, invtq, xintq, dltisy, txdbq)
+comp_sel_q <- select(comp_fundq, GVKEY, cusip, datadate, fqtr, sic, xsgaq, intanq, atq, ceqq, dlcq, dlttq, ppegtq, revtq, cheq, ltq, cshoq, prccq, saleq, ibq, dpq, ppentq, capxy, pstkq, invtq, xintq, dltisy, txdbq, xrdq)
 
 comp_sel_q <- comp_sel_q %>%
   mutate(gvkey_year_q = as.numeric(GVKEY)*100000 + year(datadate)*10 + fqtr,

@@ -15,7 +15,7 @@ df = pd.read_csv('data/csv/db_reg.csv') #created by pre_process_dta.R
 # print(sorted_columns)
 
 # Creating the variables to be used in the regressions
-df['log_assets_lag1'] = df.groupby('GVKEY')['atq'].transform(lambda x: np.log(x)).shift(1)
+df['log_assets_lag1'] = df.groupby('GVKEY')['atq'].apply(np.log).shift(1)  
 df['log_assets_squared_lag1'] = df['log_assets_lag1']**2
 df['log_assets_lag2'] = df.groupby('GVKEY')['atq'].apply(np.log).shift(2)  
 df['log_assets_squared_lag2'] = df['log_assets_lag2']**2
@@ -121,32 +121,3 @@ plt.xlabel('Actual')
 plt.ylabel('Predicted')
 plt.title('Actual vs. Predicted Values Lasso Regression')
 plt.show()
-
-#################################################
-# Adding the prediction series to the dataframe
-#################################################
-
-df_clean['intan_ridge'] = np.exp(ridge_cv.predict(X_scaled))
-df_clean['intan_lasso'] = np.exp(lasso_cv.predict(X_scaled))
-
-intan_ridge = df_clean['intan_ridge']
-intan_orig = df_clean['org_cap_comp']
-plt.figure(figsize=(10, 6))
-plt.scatter(intan_orig, intan_ridge, alpha=1)
-plt.plot([intan_orig.min(), intan_orig.max()], [intan_orig.min(), intan_orig.max()], '--', lw=2, color='red')
-plt.xlabel('Actual')
-plt.ylabel('Predicted')
-plt.title('Actual vs. Predicted Values Lasso Regression')
-plt.show()
-
-intan_lasso = df_clean['intan_lasso']
-plt.figure(figsize=(10, 6))
-plt.scatter(intan_orig, intan_lasso, alpha=1)
-plt.plot([intan_orig.min(), intan_orig.max()], [intan_orig.min(), intan_orig.max()], '--', lw=2, color='red')
-plt.xlabel('Actual')
-plt.ylabel('Predicted')
-plt.title('Actual vs. Predicted Values Lasso Regression')
-plt.show()
-
-# Save the dataframe to a csv file
-df_clean.to_csv('data/csv/db_reg_dml.csv', index=False)

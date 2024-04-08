@@ -8,7 +8,7 @@ library(reshape2)
 library(dplyr)
 library(readxl)
 
-load('data/rdata/ccm_q.RData')
+load('data/rdata/ccm_q.RData') #from merge_cc_q.R
 
 cpi <- read_xls("data/excel/CPI.xls", sheet = "data")
 cpi <- cpi %>%

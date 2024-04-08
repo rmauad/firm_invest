@@ -15,10 +15,12 @@ df = pd.read_csv('data/csv/db_reg.csv') #created by pre_process_dta.R
 # print(sorted_columns)
 
 # Creating the variables to be used in the regressions
-df['log_assets_lag1'] = df.groupby('GVKEY')['atq'].transform(lambda x: np.log(x)).shift(1)
+df['log_assets_lag1'] = df.groupby('GVKEY')['atq'].apply(np.log).shift(1)  
 df['log_assets_squared_lag1'] = df['log_assets_lag1']**2
 df['log_assets_lag2'] = df.groupby('GVKEY')['atq'].apply(np.log).shift(2)  
 df['log_assets_squared_lag2'] = df['log_assets_lag2']**2
+# df['log_assets_lag3'] = df.groupby('GVKEY')['atq'].apply(np.log).shift(3)  
+# df['log_assets_squared_lag3'] = df['log_assets_lag3']**2
 df['debt_at_lag1'] = df.groupby('GVKEY')['debt_at'].shift(1)
 df['debt_at_squared_lag1'] = df['debt_at_lag1']**2
 df['debt_at_lag2'] = df.groupby('GVKEY')['debt_at'].shift(2)
@@ -29,13 +31,19 @@ df['cash_at_lag1'] = df.groupby('GVKEY')['cash_at'].shift(1)
 df['cash_at_squared_lag1'] = df['cash_at_lag1']**2
 df['cash_at_lag2'] = df.groupby('GVKEY')['cash_at'].shift(2)
 df['cash_at_squared_lag2'] = df['cash_at_lag2']**2
+# df['cash_at_lag3'] = df.groupby('GVKEY')['cash_at'].shift(3)
+# df['cash_at_squared_lag3'] = df['cash_at_lag3']**2
 df['capex_lag1'] = df.groupby('GVKEY')['capxy'].shift(1)
 df['capex_squared_lag1'] = df['capex_lag1']**2
 df['capex_lag2'] = df.groupby('GVKEY')['capxy'].shift(2)
 df['capex_squared_lag2'] = df['capex_lag2']**2
+# df['capex_lag3'] = df.groupby('GVKEY')['capxy'].shift(3)
+# df['capex_squared_lag3'] = df['capex_lag3']**2
 df['sales_growth_squared_lag1'] = df['sales_growth_lag1']**2
 df['sales_growth_lag2'] = df.groupby('GVKEY')['sales_growth_lag1'].shift(1)
 df['sales_growth_squared_lag2'] = df['sales_growth_lag2']**2
+# df['sales_growth_lag3'] = df.groupby('GVKEY')['sales_growth_lag1'].shift(2)
+# df['sales_growth_squared_lag3'] = df['sales_growth_lag3']**2
 # df['log_sga_lag1'] = df.groupby('GVKEY')['xsgaq'].apply(np.log).shift(1)
 # df['log_sga_squared_lag1'] = df['log_sga_lag1']**2
 # df['log_sga_lag2'] = df.groupby('GVKEY')['xsgaq'].apply(np.log).shift(2)
@@ -55,7 +63,7 @@ df_clean = df.dropna()
 #df_clean = df_clean[(np.isfinite(df_clean)).all(axis=1)]
 
 # X = df_clean[['log_assets_lag1', 'log_assets_squared_lag1', 'log_assets_lag2', 'log_assets_squared_lag2', 'debt_at_lag1', 'debt_at_squared_lag1', 'debt_at_lag2', 'debt_at_squared_lag2', 'cash_at_lag1', 'cash_at_squared_lag1', 'cash_at_lag2', 'cash_at_squared_lag2', 'capex_lag2', 'capex_squared_lag2', 'sales_growth_lag1', 'sales_growth_squared_lag1', 'sales_growth_lag2', 'sales_growth_squared_lag2', 'log_rd_lag1', 'log_rd_squared_lag1', 'log_rd_lag2', 'log_rd_squared_lag2']]
-X = df_clean[['log_assets_lag1', 'log_assets_squared_lag1', 'log_assets_lag2', 'log_assets_squared_lag2', 'debt_at_lag1', 'debt_at_squared_lag1', 'debt_at_lag2', 'debt_at_squared_lag2', 'debt_at_lag3', 'debt_at_squared_lag3', 'cash_at_lag1', 'cash_at_squared_lag1', 'cash_at_lag2', 'cash_at_squared_lag2', 'capex_lag2', 'capex_squared_lag2', 'sales_growth_lag1', 'sales_growth_squared_lag1', 'sales_growth_lag2', 'sales_growth_squared_lag2']]
+X = df_clean[['log_assets_lag1', 'log_assets_squared_lag1', 'log_assets_lag2', 'log_assets_squared_lag2', 'log_assets_lag3', 'log_assets_squared_lag3','debt_at_lag1', 'debt_at_squared_lag1', 'debt_at_lag2', 'debt_at_squared_lag2', 'debt_at_lag3', 'debt_at_squared_lag3', 'cash_at_lag1', 'cash_at_squared_lag1', 'cash_at_lag2', 'cash_at_squared_lag2', 'cash_at_lag3', 'cash_at_squared_lag3', 'capex_lag2', 'capex_squared_lag2', 'capex_lag3', 'capex_squared_lag3', 'sales_growth_lag1', 'sales_growth_squared_lag1', 'sales_growth_lag2', 'sales_growth_squared_lag2', 'sales_growth_lag3', 'sales_growth_squared_lag3']]
 y = df_clean['log_intan']
 
 # Standardize the features
@@ -121,32 +129,3 @@ plt.xlabel('Actual')
 plt.ylabel('Predicted')
 plt.title('Actual vs. Predicted Values Lasso Regression')
 plt.show()
-
-#################################################
-# Adding the prediction series to the dataframe
-#################################################
-
-df_clean['intan_ridge'] = np.exp(ridge_cv.predict(X_scaled))
-df_clean['intan_lasso'] = np.exp(lasso_cv.predict(X_scaled))
-
-intan_ridge = df_clean['intan_ridge']
-intan_orig = df_clean['org_cap_comp']
-plt.figure(figsize=(10, 6))
-plt.scatter(intan_orig, intan_ridge, alpha=1)
-plt.plot([intan_orig.min(), intan_orig.max()], [intan_orig.min(), intan_orig.max()], '--', lw=2, color='red')
-plt.xlabel('Actual')
-plt.ylabel('Predicted')
-plt.title('Actual vs. Predicted Values Lasso Regression')
-plt.show()
-
-intan_lasso = df_clean['intan_lasso']
-plt.figure(figsize=(10, 6))
-plt.scatter(intan_orig, intan_lasso, alpha=1)
-plt.plot([intan_orig.min(), intan_orig.max()], [intan_orig.min(), intan_orig.max()], '--', lw=2, color='red')
-plt.xlabel('Actual')
-plt.ylabel('Predicted')
-plt.title('Actual vs. Predicted Values Lasso Regression')
-plt.show()
-
-# Save the dataframe to a csv file
-df_clean.to_csv('data/csv/db_reg_dml.csv', index=False)

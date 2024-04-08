@@ -6,15 +6,15 @@ library(dplyr)
 library(readxl)
 library(lubridate)
 
-load('data/rdata/intan_epk_q.RData')
-source('code/jmp_github/R/prep_dta/ff_ind.R')
+load('data/rdata/intan_epk_q.RData') #from intan_epk_q.R ("merge" folder)
+source('code/firm_invest/R/prep_dta/ff_ind.R')
 
 # CREATING NEW VARIABLES ####
 
 data_intan_q_new <- data_intan_q %>% select(GVKEY, cusip, year, year_q, sic, atq, ceqq, dlcq, dlttq, 
                                             ppegtq, cheq, org_cap_comp, 
                                             saleq, ibq, dpq, 
-                                            ppentq, CPI, RGDP, Ind_prod, dln_RGDP, d_Ind_prod, dltisy, emp, capxy, cshoq, prccq) %>%
+                                            ppentq, CPI, RGDP, Ind_prod, dln_RGDP, d_Ind_prod, dltisy, emp, capxy, cshoq, prccq, xrdq, xsgaq) %>%
   mutate(ff_indust = sapply(sic,ff_ind)) %>%
   mutate(total_debt = dlcq + dlttq) %>%
   mutate(debt_at = total_debt/atq) %>%
