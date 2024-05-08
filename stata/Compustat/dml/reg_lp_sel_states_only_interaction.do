@@ -1,5 +1,5 @@
 
-use data/dta/db_reg_comp.dta
+use data/dta/db_reg_dml.dta, clear //from pre_process.py
 
 xtset GVKEY year_q
 
@@ -21,10 +21,10 @@ gen b=0
 gen u=0
 gen d=0
 qui forv h = 1/`h_cur' {
-xtreg dln_inv`h' c.d_treas_2y_lag1##ter_bot ln_assets sales_growth_lag1 cash_at_lag1 i.year if d_less_const == 1,fe cluster(ff_indust)
-replace b = _b[1.ter_bot#c.d_treas_2y_lag1]   if _n == `h'+1
-replace u = _b[1.ter_bot#c.d_treas_2y_lag1] + 1.645* _se[1.ter_bot#c.d_treas_2y_lag1]  if _n == `h'+1
-replace d = _b[1.ter_bot#c.d_treas_2y_lag1] - 1.645* _se[1.ter_bot#c.d_treas_2y_lag1]  if _n == `h'+1
+xtreg dln_inv`h' c.d_treas_2y_lag1##ter_lasso_bot ln_assets sales_growth_lag1 cash_at_lag1 i.year if d_less_const == 1,fe cluster(ff_indust)
+replace b = _b[1.ter_lasso_bot#c.d_treas_2y_lag1]   if _n == `h'+1
+replace u = _b[1.ter_lasso_bot#c.d_treas_2y_lag1] + 1.645* _se[1.ter_lasso_bot#c.d_treas_2y_lag1]  if _n == `h'+1
+replace d = _b[1.ter_lasso_bot#c.d_treas_2y_lag1] - 1.645* _se[1.ter_lasso_bot#c.d_treas_2y_lag1]  if _n == `h'+1
 eststo 
 }
 //nois esttab , se nocons keep(L.dstir)
@@ -41,7 +41,7 @@ twoway ///
 		xlabel(-0(2)`h_cur', angle(horizontal) labsize(medlarge)) ///
 		graphregion(color(white)) plotregion(color(white))
 		
-		graph export "output/graphs/tang_sel_states_inter.png", as(png) replace
+		graph export "output/graphs/tang_sel_states_inter_lasso.png", as(png) replace
 		
 		
 ********************
@@ -58,10 +58,10 @@ gen b=0
 gen u=0
 gen d=0
 qui forv h = 1/`h_cur' {
-xtreg dln_inv`h' c.d_treas_2y_lag1##ter_top ln_assets sales_growth_lag1 cash_at_lag1 i.year if d_less_const == 1,fe cluster(ff_indust)
-replace b = _b[1.ter_top#c.d_treas_2y_lag1]   if _n == `h'+1
-replace u = _b[1.ter_top#c.d_treas_2y_lag1] + 1.645* _se[1.ter_top#c.d_treas_2y_lag1]  if _n == `h'+1
-replace d = _b[1.ter_top#c.d_treas_2y_lag1] - 1.645* _se[1.ter_top#c.d_treas_2y_lag1]  if _n == `h'+1
+xtreg dln_inv`h' c.d_treas_2y_lag1##ter_lasso_top ln_assets sales_growth_lag1 cash_at_lag1 i.year if d_less_const == 1,fe cluster(ff_indust)
+replace b = _b[1.ter_lasso_top#c.d_treas_2y_lag1]   if _n == `h'+1
+replace u = _b[1.ter_lasso_top#c.d_treas_2y_lag1] + 1.645* _se[1.ter_lasso_top#c.d_treas_2y_lag1]  if _n == `h'+1
+replace d = _b[1.ter_lasso_top#c.d_treas_2y_lag1] - 1.645* _se[1.ter_lasso_top#c.d_treas_2y_lag1]  if _n == `h'+1
 eststo 
 }
 //nois esttab , se nocons keep(L.dstir)
@@ -78,6 +78,6 @@ twoway ///
 		xlabel(-0(2)`h_cur', angle(horizontal) labsize(medlarge)) ///
 		graphregion(color(white)) plotregion(color(white))
 		
-		graph export "output/graphs/intang_sel_states_inter.png", as(png) replace
+		graph export "output/graphs/intang_sel_states_inter_lasso.png", as(png) replace
 
 	

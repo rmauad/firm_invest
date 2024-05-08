@@ -83,8 +83,9 @@ print(model)
 #########         Latex tables      ###########
 ###############################################
 
+summary = model.summary
 
-latex_table = model.summary().as_latex()
+latex_table = summary.as_latex()
 
 # print(latex_table)
 with open('output/tex/event_study.tex', 'w') as f:

@@ -74,10 +74,7 @@ merge m:1 year using /homes/nber/mauadr/bulk/orbis.work/intan_mp/data/dta/db_reg
 //drop if year == year[_n-1] //in case there are repeated time values within the panel
 save /homes/nber/mauadr/bulk/orbis.work/intan_mp/data/dta/db_reg_orbis_2yt.dta, replace
 
-****************************************
-* Selecting non-publicly traded firms
-****************************************
-
+// Selecting non-publicly traded firms
 use bvdidnumber stockexchangeslisted using exchanges.dta
 duplicates drop bvdidnumber, force
 merge 1:m bvdidnumber using /homes/nber/mauadr/bulk/orbis.work/intan_mp/data/dta/db_reg_orbis_2yt.dta, keep(2) //keep (2) preserves the observations from db_reg_orbis_2yt.dta that did not have an equivalent in exchanges.dta
@@ -87,23 +84,3 @@ merge 1:m bvdidnumber using /homes/nber/mauadr/bulk/orbis.work/intan_mp/data/dta
 gen stck_exc_ind = 0
 replace stck_exc_ind = 1 if missing(stockexchangeslisted)
 save /homes/nber/mauadr/bulk/orbis.work/intan_mp/data/dta/db_reg_orbis_all_2yt.dta, replace
-
-******************************
-* Including data about states
-******************************
-
-use bvdidnumber stateorprovinceinusorcanada using /homes/nber/mauadr/orbis.work/orbis4/bycnty/US/contact.dta
-merge 1:m bvdidnumber using /homes/nber/mauadr/bulk/orbis.work/intan_mp/data/dta/db_reg_orbis_npt_2yt.dta, keep(3) nogen
-
-// Creating dummy for states/years where a law was enacted reducing uncertainty about seizing assets
-gen d_less_const = (inlist(stateorprovinceinusorcanada, "TX", "LA") & year >= 1997 & year <= 2003)
-save /homes/nber/mauadr/bulk/orbis.work/intan_mp/data/dta/db_reg_orbis_npt_2yt_states.dta, replace
-
-******************************
-* Including data on equity
-******************************
-
-use bvdidnumber totalshareholdersequity using /homes/nber/mauadr/orbis.work/orbis4/bycnty/US/dfindusd.dta
-merge 1:m bvdidnumber using /homes/nber/mauadr/bulk/orbis.work/intan_mp/data/dta/db_reg_orbis_all_2yt.dta, keep(3) nogen
-save /homes/nber/mauadr/bulk/orbis.work/intan_mp/data/dta/db_reg_orbis_equity_2yt_states.dta, replace
-

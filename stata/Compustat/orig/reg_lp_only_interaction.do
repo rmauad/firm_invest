@@ -1,5 +1,5 @@
 
-use data/dta/db_reg_comp.dta
+use data/dta/db_reg_comp.dta //from pre_process_dta.R
 
 xtset GVKEY year_q
 

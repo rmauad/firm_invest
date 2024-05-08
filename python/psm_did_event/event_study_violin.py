@@ -44,21 +44,20 @@ df_year_intan_filtered = df_year_intan[(df_year_intan['year'] >= 1995) & (df_yea
 
 # Tangible firms
 plt.figure(figsize=(12, 6))
-sns.violinplot(x='year', y='debt_at', hue = 'group', data=df_year_tang_filtered, split=True)
-plt.title('Debt/assets by Year for Tangible Firms')
-plt.xlabel('Years')
-plt.ylabel('Debt/assets')
+ax = sns.violinplot(x='year', y='debt_at', hue = 'group', data=df_year_tang_filtered, split=True)
+plt.title('Debt/assets by Year for Tangible Firms', fontsize=16)
+plt.xlabel('Years', fontsize=14)
+plt.ylabel('Debt/assets', fontsize=14)
+ax.tick_params(axis='both', which='major', labelsize=12)
 plt.show()
-#plt.savefig('output/graphs/debt_issuance_violin.png')
+
+#plt.savefig('output/graphs/debt_at_tang_violin.png')
 
 # Intangible firms
 plt.figure(figsize=(12, 6))
-#ax = sns.violinplot(x='year', y='debt_issuance', hue = 'group', data=df_year_intan_filtered, split=True)
-sns.violinplot(x='year', y='debt_at', hue = 'group', data=df_year_intan_filtered, split=True)
-plt.title('Debt/assets by Year for Intangible Firms')
-plt.xlabel('Years')
-plt.ylabel('Debt/assets')
-#ax.set_ylim(-10000, 20000)
-plt.tight_layout()
+ax = sns.violinplot(x='year', y='debt_at', hue = 'group', data=df_year_intan_filtered, split=True)
+plt.title('Debt/assets by Year for Intangible Firms', fontsize=16)
+plt.xlabel('Years', fontsize=14)
+plt.ylabel('Debt/assets', fontsize=14)
+ax.tick_params(axis='both', which='major', labelsize=12)
 plt.show()
-
