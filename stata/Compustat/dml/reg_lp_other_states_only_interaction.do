@@ -72,7 +72,7 @@ twoway ///
 		(line b Quarters, lcolor(blue) ///
 		lpattern(solid) lwidth(thick)) /// 
 		(line Zero Quarters, lcolor(black)), legend(off) ///
-		title("Intangible firms", color(black) size(large)) ///
+		title("Other states - Lasso estimation", color(black) size(large)) ///
 		ytitle("ln(K{subscript:t+h}/K{subscript:t})", size(medlarge)) xtitle("Quarter", size(medlarge)) ///
 		yline(-3(1)4, lcolor(gs13) lpattern(solid)) ///
 		ylabel(-3(1)4, angle(horizontal) labsize(medlarge)) ///
