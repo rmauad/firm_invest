@@ -203,29 +203,3 @@ plt.axvline(x='2005Q1', color='r', linestyle='--')
 plt.legend()
 plt.grid(True)
 plt.show()
-
-##################
-# Check the data
-##################
-
-df['GVKEY'].nunique()
-df['GVKEY'][df['state'] == 'LA'].nunique()
-df['debt_at'][df['state'] == 'AL'].isna().sum()
-df['debt_at'][df['state'] == 'AL'].describe()
-df['debt_at'][df['state'] == 'TX'].describe()
-print(df_treated.shape)
-
-a = 1126 + 55
-print(a)
-
-sorted_columns = sorted(df.columns)
-print(sorted_columns)
-
-df['debt_cap'][(df['year_q'] == '1997Q2') & (df['GVKEY'] != 23942) & (df['GVKEY'] != 1755)].describe()
-df['debt_cap'][(df['year_q'] == '1997Q3') & (df['GVKEY'] != 23942)].describe()
-
-df[['GVKEY', 'debt_cap']][df['year_q'] == '1997Q2'].min()
-sorted_df = df[df['year_q'] == '1997Q2'].sort_values('debt_cap', ascending=True)
-lowest_leverage_firm = sorted_df[['GVKEY', 'debt_cap']].iloc[1]
-print(lowest_leverage_firm)
-df['GVKEY'].dtype

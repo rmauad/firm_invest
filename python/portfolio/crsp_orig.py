@@ -12,6 +12,7 @@ df = pd.read_csv('data/csv/db_did.csv') # created by prep_db_did.py
 crsp = pd.read_csv('data/csv/crsp_full.csv')
 link_permno_gvkey = pd.read_csv('data/csv/link_permno_gvkey.csv')
 link_permno_gvkey = link_permno_gvkey.loc[:,['GVKEY', 'LPERMNO']]
+link_permno_gvkey_unique = link_permno_gvkey.drop_duplicates()
 
 ########################################################
 # Merging databases and selecting variables of interest
@@ -26,24 +27,32 @@ quarter_to_middle_month = {
 }
 
 # Merging databases
-df_link = (pd.merge(df, link_permno_gvkey, how = 'inner', on = 'GVKEY')
-            .rename(columns = {'LPERMNO': 'PERMNO'})
-            .assign(month = lambda x: x['year_q'].str[-2:].map(quarter_to_middle_month))
-            .assign(PERMNO_year_month = lambda x: x['PERMNO'].astype(str) + '_' + x['year'].astype(str) + '_' + x['month'].astype(str))
-            .drop(columns = ['year_q', 'year', 'month'])
-            )
+crsp_sel = crsp[['PERMNO', 'date', 'PRC', 'RET', 'SHROUT']]
 
-crsp = (crsp.assign(date = pd.to_datetime(crsp["date"], format = '%Y%m%d', errors = "coerce")) #non-conforming entries will be coerced to "Not a Time - NaT"
-        .assign(month = lambda x: x['date'].dt.month)
-        .assign(year = lambda x: x['date'].dt.year)
-        .assign(PERMNO_year_month = lambda x: x['PERMNO'].astype(str) + '_' + x['year'].astype(str) + '_' + x['month'].astype(str))
+crsp_sel = (crsp_sel
+             .assign(date = pd.to_datetime(crsp["date"], format = '%Y%m%d', errors = "coerce")) #non-conforming entries will be coerced to "Not a Time - NaT"
+             .assign(month = lambda x: x['date'].dt.month)
+             .assign(year = lambda x: x['date'].dt.year)
         )
-
-#df_merge = pd.merge(crsp, df_link, how = 'left', on = 'PERMNO_year_month')
-crsp_sel = crsp[['PERMNO_year_month', 'year', 'month', 'PRC', 'RET', 'SHROUT']]
 crsp_sel = crsp_sel.query('1990 <= year <= 2020')
 
-df_merge = (pd.merge(crsp_sel, df_link, how = 'left', on = 'PERMNO_year_month'))
+link_permno_gvkey_renamed = link_permno_gvkey_unique.rename(columns={'LPERMNO': 'PERMNO'})
+
+#crsp_link = pd.merge(crsp_sel, link_permno_gvkey_renamed, how = 'inner', on = 'PERMNO')
+
+
+crsp_link = (pd.merge(crsp_sel, link_permno_gvkey_renamed, how = 'inner', on = 'PERMNO')
+             .assign(GVKEY_year_month = lambda x: x['GVKEY'].astype(str) + '_' + x['year'].astype(str) + '_' + x['month'].astype(str))
+        )
+
+df_link = (df.assign(month = lambda x: x['year_q'].str[-2:].map(quarter_to_middle_month))
+            .assign(GVKEY_year_month = lambda x: x['GVKEY'].astype(str) + '_' + x['year'].astype(str) + '_' + x['month'].astype(str))
+            .drop(columns = ['year_q', 'year', 'month', 'GVKEY'])
+            )
+
+#df_merge = pd.merge(crsp, df_link, how = 'left', on = 'PERMNO_year_month')
+
+df_merge = (pd.merge(crsp_link, df_link, how = 'left', on = 'GVKEY_year_month'))
             #.rename(columns = {'year_x': 'year', 'month_x': 'month'})
             #.query('1990 <= year <= 2020'))
 
@@ -81,14 +90,55 @@ df_sel_filled = df_filled.assign(
     year_month = lambda x: x['year'].astype(str) + '-' + x['month'].astype(str)
 )
 
+
+######################################################
+# No difference between tangible and intangible firms
+######################################################
+df_sel_filled = df_sel_filled.assign(
+    treated=lambda x: (x['state'] == 'TX') | (x['state'] == 'LA')
+)
+           
+df_treated = df_sel_filled[(df_sel_filled['treated'] == 1) & (df_sel_filled['year'] >= 1990) & (df_sel_filled['year'] <= 2006)] #only firms in TX and LA
+df_control = df_sel_filled[(df_sel_filled['treated'] == 0) & (df_sel_filled['year'] >= 1990) & (df_sel_filled['year'] <= 2006)]
+
+debt_at_treated_mean = df_treated.groupby(['year_month'])['debt_at'].mean()
+debt_at_control_mean = df_control.groupby(['year_month'])['debt_at'].mean()
+
+# months_of_interest = ['02', '05', '08', '11']
+# debt_at_treated_mean_filtered = debt_at_treated_mean[debt_at_treated_mean.index.str[-2:].isin(months_of_interest)]
+# debt_at_control_mean_filtered = debt_at_control_mean[debt_at_control_mean.index.str[-2:].isin(months_of_interest)]
+
+plt.figure(figsize=(10, 6))
+plt.plot(debt_at_treated_mean.index, debt_at_treated_mean.values, label = 'Treated', marker = 'o')
+plt.plot(debt_at_control_mean.index, debt_at_control_mean.values, label = 'Control', marker = 'o')
+plt.title('Leverage of tangible firms')
+plt.xlabel('Month')
+plt.ylabel('Leverage')
+plt.xticks(rotation = 45)
+tick_labels = debt_at_treated_mean.index[::10]
+plt.xticks(tick_labels)
+plt.legend()
+plt.grid(True)
+plt.show()
+
+# plt.figure(figsize=(10, 6))
+# plt.plot(debt_at_treated_mean_filtered.index, debt_at_treated_mean.values, label = 'Treated', marker = 'o')
+# plt.plot(debt_at_control_mean_filtered.index, debt_at_control_mean.values, label = 'Control', marker = 'o')
+# plt.title('Leverage of tangible firms')
+# plt.xlabel('Month')
+# plt.ylabel('Average stock price')
+# plt.xticks(rotation = 45)
+# #tick_labels = debt_at_treated_mean_filtered.index
+# plt.xticks(list(debt_at_treated_mean_filtered.index))  # Ensure x-ticks match the filtered data
+# plt.legend()
+# plt.grid(True)
+# plt.show()
+
 #########################################################
 # Plotting stock returns from the original CRSP dataset
 #########################################################
 #crsp_sel = crsp[(crsp['year'] >= 1990) & (crsp['year'] <= 2020)]
-df_sel_filled = df_sel_filled.assign(
-    treated=lambda x: (x['state'] == 'TX') | (x['state'] == 'LA')
-)
-                 
+      
 df_intan = df_sel_filled[(df_sel_filled['ter_top'] == 1) & (df_sel_filled['year'] >= 1990) & (df_sel_filled['year'] <= 2006)]
 df_tang = df_sel_filled[(df_sel_filled['ter_bot'] == 1) & (df_sel_filled['year'] >= 1990) & (df_sel_filled['year'] <= 2006)]
 
@@ -105,7 +155,7 @@ debt_at_control_mean = df_control_tang.groupby(['year_month'])['debt_at'].mean()
 plt.figure(figsize=(10, 6))
 plt.plot(debt_at_treated_mean.index, debt_at_treated_mean.values, label = 'Treated', marker = 'o')
 plt.plot(debt_at_control_mean.index, debt_at_control_mean.values, label = 'Control', marker = 'o')
-plt.title('Stock price of tangible firms')
+plt.title('Leverage of tangible firms')
 plt.xlabel('Month')
 plt.ylabel('Average stock price')
 plt.xticks(rotation = 45)
