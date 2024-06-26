@@ -11,10 +11,10 @@ source('code/firm_invest/R/prep_dta/ff_ind.R')
 
 # CREATING NEW VARIABLES ####
 
-data_intan_q_new <- data_intan_q %>% select(GVKEY, cusip, year, year_q, sic, atq, ceqq, dlcq, dlttq, 
+data_intan_q_new <- data_intan_q %>% select(DATE, rdq, GVKEY, cusip, year, year_q, sic, atq, ceqq, dlcq, dlttq, 
                                             ppegtq, cheq, org_cap_comp, 
                                             saleq, ibq, dpq, 
-                                            ppentq, CPI, RGDP, Ind_prod, dln_RGDP, d_Ind_prod, dltisy, emp, capxy, cshoq, prccq, xrdq, xsgaq) %>%
+                                            ppentq, CPI, RGDP, Ind_prod, dln_RGDP, d_Ind_prod, dltisy, capxy, cshoq, prccq, xrdq, xsgaq) %>%
   mutate(ff_indust = sapply(sic,ff_ind)) %>%
   mutate(total_debt = dlcq + dlttq) %>%
   mutate(debt_at = total_debt/atq) %>%
@@ -28,7 +28,7 @@ data_intan_q_new <- data_intan_q %>% select(GVKEY, cusip, year, year_q, sic, atq
   mutate(inv_intan = org_cap_comp - dplyr::lag(org_cap_comp)) %>%
   mutate(inv_tot = capxy + inv_intan) %>%
   mutate(inv_tot_at = inv_tot/atq) %>%
-  mutate(dln_emp = log(emp) - dplyr::lag(log(emp))) %>%
+  #mutate(dln_emp = log(emp) - dplyr::lag(log(emp))) %>%
   mutate(ltdebt_issue_at = dltisy/atq,
          bankruptcy = 0,
          bankruptcy = c(bankruptcy[-n()],1),

@@ -28,7 +28,7 @@ if not zero_std_cols.empty:
 # Checking for missing values in a single column and in a group of columns
 dep_inf = np.isinf(dep)
 print(dep_inf.any())
-dep.shape
+df.shape
 indep.shape
 inf_mask = np.isinf(indep)
 print(indep.columns[inf_mask.any()])

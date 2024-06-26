@@ -12,7 +12,7 @@ from merge_functions import custom_fill
 #df = pd.read_csv('data/csv/psm_clean.csv') #created by psm_clean.py
 df = pd.read_csv('data/csv/db_did.csv') # created by prep_db_did.py
 #compustat = pd.read_csv('data/csv/comp_fundq.csv')
-crsp = pd.read_csv('data/csv/crsp_full.csv')
+crsp_d = pd.read_csv('data/csv/crsp_full.csv')
 link_permno_gvkey = pd.read_csv('data/csv/link_permno_gvkey.csv')
 link_permno_gvkey = link_permno_gvkey.loc[:,['GVKEY', 'LPERMNO']]
 link_permno_gvkey_unique = link_permno_gvkey.drop_duplicates()
@@ -21,37 +21,30 @@ link_permno_gvkey_unique = link_permno_gvkey.drop_duplicates()
 # Merging databases and selecting variables of interest
 ########################################################
 
-# Defining a mapping from quarter to middle month
-quarter_to_middle_month = {
-    'Q1': '02',
-    'Q2': '05',
-    'Q3': '08',
-    'Q4': '11'
-}
-
-# Merging databases
-crsp_sel = crsp[['PERMNO', 'date', 'PRC', 'RET', 'SHROUT']]
-
-crsp_sel = (crsp_sel
-             .assign(date = pd.to_datetime(crsp["date"], format = '%Y-%m-%d', errors = "coerce")) #non-conforming entries will be coerced to "Not a Time - NaT"
+crsp_d_merge = (crsp_d
+             .assign(date = pd.to_datetime(crsp_d["date"], format = '%Y-%m-%d', errors = "coerce")) #non-conforming entries will be coerced to "Not a Time - NaT"
+             .assign(day = lambda x: x['date'].dt.day)             
              .assign(month = lambda x: x['date'].dt.month)
              .assign(year = lambda x: x['date'].dt.year)
         )
-crsp_sel = crsp_sel.query('1990 <= year <= 2020')
 
 link_permno_gvkey_renamed = link_permno_gvkey_unique.rename(columns={'LPERMNO': 'PERMNO'})
 
 
-crsp_link = (pd.merge(crsp_sel, link_permno_gvkey_renamed, how = 'inner', on = 'PERMNO')
-             .assign(GVKEY_year_month = lambda x: x['GVKEY'].astype(str) + '_' + x['year'].astype(str) + '_' + x['month'].astype(str))
+crsp_link = (pd.merge(crsp_d_merge, link_permno_gvkey_renamed, how = 'inner', on = 'PERMNO')
+             .assign(GVKEY_date = lambda x: x['GVKEY'].astype(str) + '_' + x['year'].astype(str) + '_' + x['month'].astype(str) + '_' + x['day'].astype(str))
         )
 
-df_link = (df.assign(month = lambda x: x['year_q'].str[-2:].map(quarter_to_middle_month))
-            .assign(GVKEY_year_month = lambda x: x['GVKEY'].astype(str) + '_' + x['year'].astype(str) + '_' + x['month'].astype(str))
-            .drop(columns = ['year_q', 'year', 'month', 'GVKEY'])
-            )
+df_link = (df
+           .assign(date = pd.to_datetime(df["DATE"], format = '%Y-%m-%d', errors = "coerce")) #non-conforming entries will be coerced to "Not a Time - NaT"
+           .assign(day = lambda x: x['date'].dt.day)             
+           .assign(month = lambda x: x['date'].dt.month)
+           .assign(year = lambda x: x['date'].dt.year)
+           .assign(GVKEY_date = lambda x: x['GVKEY'].astype(str) + '_' + x['year'].astype(str) + '_' + x['month'].astype(str) + '_' + x['day'].astype(str))
+           .drop(columns = ['year_q', 'year', 'month', 'day', 'GVKEY'])
+           )
 
-df_merge = (pd.merge(crsp_link, df_link, how = 'left', on = 'GVKEY_year_month'))
+df_merge = (pd.merge(crsp_link, df_link, how = 'left', on = 'GVKEY_date'))
 
 
 df_sel = df_merge[['GVKEY', 'PRC', 'RET', 'SHROUT', 'atq', \
@@ -190,3 +183,7 @@ plt.show()
 # Save dataframe
 df_sel_filled.to_csv('data/csv/ccm.csv', index = False)
 df_sel_filled.to_feather('data/feather/ccm.feather')
+
+# Data visualization
+sorted_columns = sorted(df_merge.columns)
+print(sorted_columns)

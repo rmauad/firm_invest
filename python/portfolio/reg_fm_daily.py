@@ -2,45 +2,41 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from linearmodels.asset_pricing import LinearFactorModel
+from linearmodels.panel.model import FamaMacBeth
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 
-# Read the data from the CSV file
-df = pd.read_feather('data/feather/ccm.feather') #from crsp_merge.py
+# Read the data from the feather file
+df = pd.read_feather('data/feather/ccm_97.feather') #from crsp_merge_daily.py
 
-#df = df.assign(date = pd.to_datetime(df["date"], format = '%Y%m%d', errors = "coerce")) #non-conforming entries will be coerced to "Not a Time - NaT"
-#df['date'] = pd.to_datetime(df['date'], format='%Y%m%d', errors='coerce')
+# Generate leverage and drop NAs based on the leverage
+df['debt_at'] = (df['dlttq'] + df['dlcq']) / df['atq']
+df = (df
+      #.assign(GVKEY = df['GVKEY'].astype('Int64'))
+      .assign(ln_ceqq = np.log(df['ceqq']))
+      .assign(RET = pd.to_numeric(df['RET'], errors='coerce')))
+df.set_index(['GVKEY', 'date_ret'], inplace=True)
+df['RET_lead1'] = df.groupby('GVKEY')['RET'].shift(-1)
+df.head(50)
+df_clean = df.dropna(subset=['debt_at'])
+df_clean['debt_at_lag1'] = df_clean.groupby('GVKEY')['debt_at'].shift(1)
+df_clean['d_debt_at'] = df_clean['debt_at'] - df_clean['debt_at_lag1']
 
-df.set_index(['GVKEY', 'date'], inplace=True)
-df = df[~df.index.duplicated(keep='first')]
 
-# Convert the columns to numeric
-df['RET'] = pd.to_numeric(df['RET'], errors='coerce')
-df['debt_at'] = pd.to_numeric(df['debt_at'], errors='coerce')
+
+df_clean.head(50)
+
+# df = df[~df.index.duplicated(keep='first')]
 
 # Creating variables
-df['RET_lag1'] = df.groupby('GVKEY')['RET'].shift(1)
-df['debt_at_lag1'] = df.groupby('GVKEY')['debt_at'].shift(1)
+# df['RET_lag1'] = df.groupby('GVKEY')['RET'].shift(1)
 
 
-#############################################################
-# Running the regressions on all states subject to the laws
-#############################################################
+###################################
+# Running Fama MacBeth regressions
+###################################
 
-############
-# TX and LA
-############
-
-df['dummy_tx_la_97'] = (((df['state'] == 'TX') | (df['state'] == 'LA')) & (df['year'] >= 1997))
-df['lev_x_dummy_tx_la_97'] = df['debt_at_lag1'] * df['dummy_tx_la_97']
-df = df.dropna(subset=['RET', 'debt_at_lag1', 'RET_lag1', 'dummy_tx_la_97', 'lev_x_dummy_tx_la_97'])
-
-# # Test the model on a smaller subset of the data
-# sample_fraction = 0.01  # Use 1% of the data for a quick test
-# data_sample = df.sample(frac=sample_fraction, random_state=0)
-
-
-dep = df['RET']
-indep = df[['debt_at_lag1', 'RET_lag1', 'dummy_tx_la_97', 'lev_x_dummy_tx_la_97']]
+dep = df_clean['RET_lead1']
+indep = df_clean[['debt_at', 'ln_ceqq']]
 #indep['dummy_tx_la_97'] = indep['dummy_tx_la_97'].astype(int)
 
 # # Calculate VIF for each independent variable
@@ -52,7 +48,7 @@ indep = df[['debt_at_lag1', 'RET_lag1', 'dummy_tx_la_97', 'lev_x_dummy_tx_la_97'
 #dep = dep.loc[indep.index]
 
 # Create the model and fit it
-mod = LinearFactorModel(dep, indep)
+mod = FamaMacBeth(dep, indep)
 res = mod.fit()
 
 # Print the results

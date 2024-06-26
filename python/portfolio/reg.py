@@ -1,3 +1,4 @@
+
 import pandas as pd
 import matplotlib.pyplot as plt
 from linearmodels.panel import PanelOLS
@@ -10,19 +11,36 @@ df = pd.read_feather('data/feather/ccm.feather') #from crsp_merge.py
 #df = df.assign(date = pd.to_datetime(df["date"], format = '%Y%m%d', errors = "coerce")) #non-conforming entries will be coerced to "Not a Time - NaT"
 #df['date'] = pd.to_datetime(df['date'], format='%Y%m%d', errors='coerce')
 
-
 # Convert the columns to numeric
 df['RET'] = pd.to_numeric(df['RET'], errors='coerce')
 df['debt_at'] = pd.to_numeric(df['debt_at'], errors='coerce')
 
 # Creating variables
 df.set_index(['GVKEY', 'date'], inplace=True)
+#df = df[~df.index.duplicated(keep='first')]
+#df.index = df.index.set_levels([df.index.get_level_values(0), df.index.get_level_values(1).to_period('M')])
+
+# Function to ensure consistent monthly dates for each GVKEY group
+# def ensure_monthly_dates(group):
+#     full_range = pd.date_range(start=group.index.min(), end=group.index.max(), freq='M')
+#     group = group.reindex(full_range, method='ffill')
+#     return group
+
+# df = df.groupby('GVKEY').apply(ensure_monthly_dates).reset_index(drop=True)
+
+# df = df.groupby('GVKEY').apply(ensure_monthly_dates)
+# df.index = df.index.set_levels([df.index.get_level_values(0), df.index.get_level_values(1).to_period('M')])
+
+# Check inferred frequency after setting
+print("Inferred frequency after setting:", df.index.get_level_values('date').inferred_freq)
+print(df.index.get_level_values('date').inferred_freq)
+
 df['RET_lag1'] = df.groupby('GVKEY')['RET'].shift(1)
 df['debt_at_lag1'] = df.groupby('GVKEY')['debt_at'].shift(1)
-df['delta_debt_at_lag1'] = df.groupby('GVKEY')[df['debt_at'] - df['debt_at'].shift(1)]
+df['delta_debt_at_lag1'] = df['debt_at'] - df['debt_at_lag1']
 
 # df = df.reset_index()
-print(df[['debt_at','delta_debt_at_lag1']].head(50))
+print(df[['debt_at', 'debt_at_lag1','delta_debt_at_lag1']].head(50))
 
 #############################################################
 # Running the regressions on all states subject to the laws
