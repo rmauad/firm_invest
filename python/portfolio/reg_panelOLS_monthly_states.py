@@ -1,6 +1,9 @@
 import pandas as pd
 import numpy as np
-from linearmodels.panel.model import FamaMacBeth
+from linearmodels.panel import PanelOLS
+
+# COME BACK TO THIS CODE WITH A MEASURE OF INTANGIBLE CAPITAL.
+# THE IMPACT OF LEVERAGE VARIATION ON STOCK RETURN IS NOT IMPACTED BY THE IMPLEMENATION OF ANTI-RECHARACTERIZATION LAWS.
 
 # Read the data from the feather file
 df = pd.read_feather('data/feather/ccm_monthly_filled.feather') #from crsp_merge_monthly.py
@@ -28,7 +31,8 @@ df_new = (df
       .assign(RET = pd.to_numeric(df['RET'], errors='coerce'))
       .assign(year_month = df['date_ret'].dt.to_period('M'))
       #.assign(d_tx_la_97_03 = (df['state'] == 'TX') | (df['state'] == 'LA') & (df['year'] >= 1997) & (df['year'] <= 2003))
-      .assign(d_tx_97 = lambda x: (x['state'] == 'TX') & (x['year_month'] >= '1997-01') & (x['year_month'] <= '1997-12'))
+      .assign(d_tx_97 = lambda x: (x['state'] == 'TX') & (x['year_month'] >= '1997-01') & (x['year_month']<= '2003-12'))
+      #.assign(d_tx_97 = lambda x: (x['state'] == 'TX') & (x['year_month'] >= '2003-12'))
 )
 
 # df[['GVKEY', 'year_month', 'bm']].head(50)
@@ -69,14 +73,14 @@ df_clean_no_na = df_clean.dropna(subset=['d_debt_at', 'RET_lead1', 'ln_ceqq', 'r
 ###################################
 
 dep = df_clean_no_na['RET_lead1']*100
-indep = df_clean_no_na[['d_debt_at', 'dummyXd_debt_at', 'd_tx_97', 'ln_ceqq', 'roa', 'RET', 'beta', 'bm']]
+indep = df_clean_no_na[['d_debt_at', 'd_tx_97', 'ln_ceqq', 'roa', 'RET', 'beta', 'bm']]
 # df_reset = df_clean_no_na.reset_index()
 # df_reset['GVKEY'].nunique()
 # df_reset['year_month'].min()
 # df_reset.columns
 
 # Create the model and fit it
-mod = FamaMacBeth(dep, indep)
+mod = PanelOLS(dep, indep)
 res = mod.fit()
 
 # Print the results
