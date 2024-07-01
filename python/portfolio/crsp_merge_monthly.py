@@ -1,7 +1,8 @@
 import pandas as pd
-import seaborn as sns
+# import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
+import pyreadr
 import sys
 sys.path.append('code/firm_invest/python/portfolio/')
 from merge_functions import custom_fill
@@ -9,181 +10,118 @@ from merge_functions import custom_fill
 # sys.path.append('code/firm_invest/python/psm_did_event/')
 # from data_functions import convert_to_datetime
 
-#df = pd.read_csv('data/csv/psm_clean.csv') #created by psm_clean.py
-df = pd.read_csv('data/csv/db_did.csv') # created by prep_db_did.py
-#compustat = pd.read_csv('data/csv/comp_fundq.csv')
-crsp_d = pd.read_csv('data/csv/crsp_full.csv')
+compust_pre_merge = pd.read_feather('data/feather/compust_pre_merge.feather') # from compustat_intan_merge.py 
+crsp = pd.read_csv('data/csv/crsp_full.csv')
+mkt = pd.read_csv('data/csv/F-F_Research_Data_Factors.CSV')
+
+mkt_rf = mkt[['date', 'Mkt-RF']]
+mkt_rf = (mkt_rf
+        .assign(date = pd.to_datetime(mkt_rf['date'], format='%Y%m'))
+        .assign(year_month = lambda x: x['date'].dt.to_period('M'))
+        .rename(columns = {'Mkt-RF': 'mkt_rf'})
+        .drop(columns = ['date']))
+
 link_permno_gvkey = pd.read_csv('data/csv/link_permno_gvkey.csv')
 link_permno_gvkey = link_permno_gvkey.loc[:,['GVKEY', 'LPERMNO']]
 link_permno_gvkey_unique = link_permno_gvkey.drop_duplicates()
-
-########################################################
-# Merging databases and selecting variables of interest
-########################################################
-
-crsp_d_merge = (crsp_d
-             .assign(date = pd.to_datetime(crsp_d["date"], format = '%Y-%m-%d', errors = "coerce")) #non-conforming entries will be coerced to "Not a Time - NaT"
-             .assign(day = lambda x: x['date'].dt.day)             
-             .assign(month = lambda x: x['date'].dt.month)
-             .assign(year = lambda x: x['date'].dt.year)
-        )
-
 link_permno_gvkey_renamed = link_permno_gvkey_unique.rename(columns={'LPERMNO': 'PERMNO'})
 
+####################################################################
+# Adapting Compustat (generated for the merge with daily CRSP data) 
+# to merge with monthly CRSP data
+####################################################################
 
-crsp_link = (pd.merge(crsp_d_merge, link_permno_gvkey_renamed, how = 'inner', on = 'PERMNO')
-             .assign(GVKEY_date = lambda x: x['GVKEY'].astype(str) + '_' + x['year'].astype(str) + '_' + x['month'].astype(str) + '_' + x['day'].astype(str))
-        )
+compust_monthly = (compust_pre_merge
+                   #.assign(GVKEY_year_month = lambda x: x['GVKEY'].astype(str) + '_' + x['year'].astype(str) + '_' + x['month'].astype(str))
+                   .drop(columns = ['year_month', 'GVKEY'])
+                   .rename(columns = {'date': 'date_compustat'}))
+#compust_monthly.head(50)
+####################
+# Merging CRSP data
+####################
+crsp_sel = crsp[['PERMNO', 'date', 'RET', 'PRC', 'SHROUT']]
+# crsp_sel.head(50)
+crsp_clean = (crsp_sel
+                   .assign(PERMNO = lambda x: x['PERMNO'].astype(int))
+                   #.assign(date = lambda x: x['date'].astype(int))
+                   .assign(date = pd.to_datetime(crsp["date"], format = '%Y%m%d', errors = "coerce")) #non-conforming entries will be coerced to "Not a Time - NaT"
+                   .assign(year_month = lambda x: x['date'].dt.to_period('M'))
+                   #.assign(year = lambda x: x['date'].dt.year.astype('Int64'))
+                   #.query('1997 <= year <= 2005')
+                   )
+# crsp_clean.shape
+crsp_link = (pd.merge(crsp_clean, link_permno_gvkey_renamed, how = 'left', on = 'PERMNO'))
+# crsp_link.shape
 
-df_link = (df
-           .assign(date = pd.to_datetime(df["DATE"], format = '%Y-%m-%d', errors = "coerce")) #non-conforming entries will be coerced to "Not a Time - NaT"
-           .assign(day = lambda x: x['date'].dt.day)             
-           .assign(month = lambda x: x['date'].dt.month)
-           .assign(year = lambda x: x['date'].dt.year)
-           .assign(GVKEY_date = lambda x: x['GVKEY'].astype(str) + '_' + x['year'].astype(str) + '_' + x['month'].astype(str) + '_' + x['day'].astype(str))
-           .drop(columns = ['year_q', 'year', 'month', 'day', 'GVKEY'])
-           )
+# crsp_d_df_link = (crsp_link
+#                   .assign(GVKEY = lambda x: x['GVKEY'].astype('Int64')))
 
-df_merge = (pd.merge(crsp_link, df_link, how = 'left', on = 'GVKEY_date'))
+# sample_crsp_d_df_link = crsp_d_df_link.sample(frac = 0.001, random_state = 42)
+# crsp_link.head(50)
 
-
-df_sel = df_merge[['GVKEY', 'PRC', 'RET', 'SHROUT', 'atq', \
-                   'capxy', 'cash_at', 'debt_at', 'org_cap_comp', 'ppentq', \
-                    'year', 'month', 'date', 'state']]
-
-df_filled = df_sel.groupby('GVKEY').apply(custom_fill)
-
-df_sel_filled = df_filled.assign(
-    intan_cap=lambda x: x['org_cap_comp'] / (x['org_cap_comp'] + x['ppentq']),
-    tercile=lambda x: pd.qcut(x['intan_cap'], q=3, labels=['low', 'mid', 'high']),
-    ter_top=lambda x: (x['tercile'] == 'high').astype(int),
-    ter_mid=lambda x: (x['tercile'] == 'mid').astype(int),
-    ter_bot=lambda x: (x['tercile'] == 'low').astype(int),    # Convert boolean to integer (1 for True, 0 for False)
-    year_month = lambda x: x['year'].astype(str) + '-' + x['month'].astype(str)
-)
-
-######################################################
-# No difference between tangible and intangible firms
-######################################################
-df_sel_filled = df_sel_filled.assign(
-    treated=lambda x: (x['state'] == 'TX') | (x['state'] == 'LA')
-)
-           
-df_treated = df_sel_filled[(df_sel_filled['treated'] == 1) & (df_sel_filled['year'] >= 1990) & (df_sel_filled['year'] <= 2006)] #only firms in TX and LA
-df_control = df_sel_filled[(df_sel_filled['treated'] == 0) & (df_sel_filled['year'] >= 1990) & (df_sel_filled['year'] <= 2006)]
-
-# Calculating 98th percentile for outlier removal
-percentile_98_treated = df_treated['debt_at'].quantile(.98)
-percentile_98_control = df_control['debt_at'].quantile(.98)
-
-# Filtering out data above 98th percentile
-df_treated_filtered = df_treated[df_treated['debt_at'] <= percentile_98_treated]
-df_control_filtered = df_control[df_control['debt_at'] <= percentile_98_control]
-
-debt_at_treated_mean = df_treated_filtered.groupby(['year_month'])['debt_at'].mean()
-debt_at_control_mean = df_control_filtered.groupby(['year_month'])['debt_at'].mean()
-
-plt.figure(figsize=(10, 6))
-plt.plot(debt_at_treated_mean.index, debt_at_treated_mean.values, label = 'Treated', marker = 'o')
-plt.plot(debt_at_control_mean.index, debt_at_control_mean.values, label = 'Control', marker = 'o')
-plt.title('Leverage of tangible firms')
-plt.xlabel('Month')
-plt.ylabel('Leverage')
-plt.xticks(rotation = 45)
-tick_labels = debt_at_treated_mean.index[::10]
-plt.xticks(tick_labels)
-plt.legend()
-plt.grid(True)
-plt.show()
+crsp_pre_merge = (crsp_link
+                    #.assign(day = lambda x: x['date'].dt.day.astype('Int64'))             
+                    #.assign(month = lambda x: x['date'].dt.month.astype('Int64'))
+                    .assign(GVKEY = lambda x: x['GVKEY'].astype('Int64'))
+                    .assign(GVKEY_year_month = lambda x: x['GVKEY'].astype(str) + '_' + x['year_month'].astype(str))
+                    )
 
 
-#########################
-# Plotting stock prices
-#########################
-# Calculating 98th percentile for outlier removal
-percentile_98_treated = df_treated['PRC'].abs().quantile(.98)
-percentile_98_control = df_control['PRC'].abs().quantile(.98)
+crsp_pre_merge = (pd.merge(crsp_pre_merge, mkt_rf, how = 'left', on = 'year_month'))
+# crsp_pre_merge.head(50)
 
-# Filtering out data above 98th percentile
-df_treated_filtered = df_treated[df_treated['PRC'] <= percentile_98_treated]
-df_control_filtered = df_control[df_control['PRC'] <= percentile_98_control]
+crsp_pre_merge_no_dup = crsp_pre_merge[~crsp_pre_merge.duplicated('GVKEY_year_month', keep='first')]
+# crsp_pre_merge.shape
+# crsp_pre_merge_no_dup.shape
 
-stk_prc_treated_mean = df_treated_filtered.groupby('year_month')['PRC'].apply(lambda x: x.abs().mean())
-stk_prc_control_mean = df_control_filtered.groupby('year_month')['PRC'].apply(lambda x: x.abs().mean())
+crsp_merge = (crsp_pre_merge_no_dup
+           .rename(columns = {'date': 'date_ret'})
+           .drop(columns = ['PERMNO']))
+# crsp_merge.head(50)
+# compust_monthly.head(50)
 
-plt.figure(figsize=(10, 6))
-plt.plot(stk_prc_treated_mean.index, stk_prc_treated_mean.values, label = 'Treated', marker = 'o')
-plt.plot(stk_prc_control_mean.index, stk_prc_control_mean.values, label = 'Control', marker = 'o')
-plt.title('Average stock prices')
-plt.xlabel('Month')
-plt.ylabel('Stock price')
-plt.xticks(rotation = 45)
-tick_labels = stk_prc_treated_mean.index[::10]
-plt.xticks(tick_labels)
-plt.legend()
-plt.grid(True)
-plt.show()
+ccm_monthly = (pd.merge(crsp_merge, compust_monthly, how = 'left', on = 'GVKEY_year_month'))
+# ccm_monthly.shape
+ccm_monthly_no_dup = ccm_monthly[~ccm_monthly.duplicated('GVKEY_year_month', keep='first')]
+# ccm_monthly_no_dup.shape
+    
+# ccm_monthly.columns
+# ccm_monthly.shape
+# ccm_monthly_no_dup.head(50)
 
-#########################
-# Plotting stock returns
-#########################
-# Calculating 98th percentile for outlier removal
-percentile_98_treated = df_treated['RET'].abs().quantile(.98)
-percentile_98_control = df_control['RET'].abs().quantile(.98)
+# ccm_monthly_no_dup.set_index(['GVKEY', 'year_month'], inplace=True)
+columns_fill = ['atq', 'ceqq', 'dlttq', 'dlcq', 'niq', 'sic', 'state']
 
-# # Filtering out data above 98th percentile
-# df_treated_filtered = df_treated[df_treated['PRC'] <= percentile_98_treated]
-# df_control_filtered = df_control[df_control['PRC'] <= percentile_98_control]
-df_treated['RET'] = pd.to_numeric(df_treated['RET'], errors='coerce')
-df_control['RET'] = pd.to_numeric(df_control['RET'], errors='coerce')
-
-stk_ret_treated_mean = df_treated.groupby('year_month')['RET'].mean()
-stk_ret_control_mean = df_control.groupby('year_month')['RET'].mean()
-
-plt.figure(figsize=(10, 6))
-plt.plot(stk_ret_treated_mean.index, stk_ret_treated_mean.values, label = 'Treated', marker = 'o')
-plt.plot(stk_ret_control_mean.index, stk_ret_control_mean.values, label = 'Control', marker = 'o')
-plt.title('Average stock prices')
-plt.xlabel('Month')
-plt.ylabel('Stock price')
-plt.xticks(rotation = 45)
-tick_labels = stk_ret_treated_mean.index[::10]
-plt.xticks(tick_labels)
-plt.legend()
-plt.grid(True)
-plt.show()
-
-########################################
-# Plotting stock returns for tangible firms
-########################################
-
-df_treated = df_sel_filled[(df_sel_filled['treated'] == 1) & (df_sel_filled['year'] >= 1990) & (df_sel_filled['year'] <= 2006)] #only firms in TX and LA
-df_control = df_sel_filled[(df_sel_filled['treated'] == 0) & (df_sel_filled['year'] >= 1990) & (df_sel_filled['year'] <= 2006)]
-
-df_treated_tang = df_treated[(df_treated['ter_bot'] == 1)]
-df_control_tang = df_control[(df_control['ter_bot'] == 1)]
-
-stk_ret_treated_mean = df_treated_tang.groupby('year_month')['RET'].mean()
-stk_ret_control_mean = df_control_tang.groupby('year_month')['RET'].mean()
-
-plt.figure(figsize=(10, 6))
-plt.plot(stk_ret_treated_mean.index, stk_ret_treated_mean.values, label = 'Treated', marker = 'o')
-plt.plot(stk_ret_control_mean.index, stk_ret_control_mean.values, label = 'Control', marker = 'o')
-plt.title('Average stock prices')
-plt.xlabel('Month')
-plt.ylabel('Stock price')
-plt.xticks(rotation = 45)
-tick_labels = stk_ret_treated_mean.index[::10]
-plt.xticks(tick_labels)
-plt.legend()
-plt.grid(True)
-plt.show()
-
+# Fill forward the missing values within each group
+ccm_monthly_filled = ccm_monthly_no_dup.copy()
+ccm_monthly_filled[columns_fill] = ccm_monthly_filled.groupby('GVKEY')[columns_fill].transform(lambda x: x.ffill())
+# ccm_monthly_filled.shape
+# ccm_monthly.head(50)
+# ccm_monthly_no_dup[['GVKEY', 'year_month', 'atq', 'sic', 'dlttq']][ccm_monthly_no_dup['GVKEY'] == 11217]
+# ccm_monthly_filled[['GVKEY', 'year_month', 'atq', 'sic', 'dlttq']][ccm_monthly_filled['GVKEY'] == 11217]
 
 # Save dataframe
-df_sel_filled.to_csv('data/csv/ccm.csv', index = False)
-df_sel_filled.to_feather('data/feather/ccm.feather')
+ccm_monthly_filled.to_feather('data/feather/ccm_monthly_filled.feather')
 
+#####################
 # Data visualization
-sorted_columns = sorted(df_merge.columns)
-print(sorted_columns)
+#####################
+
+# sorted_columns = sorted(df_merge.columns)
+# print(sorted_columns)
+# df_intan_sel_pre_merge.shape
+# compust.shape
+# crsp_d_df_clean.shape
+# crsp_d_df_link.shape
+# crsp_d_df.head(50)
+# first_occurrence_df['GVKEY_date'].nunique()
+# duplicates_df = compustat_sel_pre_merge[compustat_sel_pre_merge.duplicated('GVKEY_date', keep=False)]
+# first_occurrence_df = compustat_sel_pre_merge[~compustat_sel_pre_merge.duplicated('GVKEY_date', keep='first')]
+# compust_no_na[['GVKEY_date', 'atq', 'atq_intan']].head(50)
+# first_occurrence_df.shape
+# compust.shape
+# duplicates_df.head(50)
+# compustat_sel_pre_merge[['date', 'GVKEY_date']].head(50)
+# df_intan_sel_pre_merge['year'].dtype
+# compustat_sel_pre_merge['year'].dtype
+# df_intan_sel['atq_intan'].isna().sum()
