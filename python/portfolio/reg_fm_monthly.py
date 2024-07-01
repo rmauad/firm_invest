@@ -8,8 +8,8 @@ from statsmodels.stats.outliers_influence import variance_inflation_factor
 # Read the data from the feather file
 df = pd.read_feather('data/feather/ccm_monthly_filled.feather') #from crsp_merge_monthly.py
 betas = pd.read_feather('data/feather/df_reg_beta.feather') #from calc_beta.py
+#testing changes
 
-# df_sel.shape
 # df.shape
 # df.head(50)
 # df.shape
