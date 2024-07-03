@@ -56,12 +56,12 @@ res = mod.fit()
 print(res)
 
 
-df_reset = df_clean.reset_index()
-df_reset['GVKEY'].nunique()
-df_reset['date_ret'].nunique()
-df[['date_ret', 'date', 'GVKEY', 'RET']].head(50)
+# df_reset = df_clean.reset_index()
+# df_reset['GVKEY'].nunique()
+# df_reset['date_ret'].nunique()
+# df[['date_ret', 'date', 'GVKEY', 'RET']].head(50)
 
-unique_dates = df['date'].unique()
-unique_dates_list = unique_dates.tolist()
-for date in unique_dates_list:
-    print(date)
+# unique_dates = df['date'].unique()
+# unique_dates_list = unique_dates.tolist()
+# for date in unique_dates_list:
+#     print(date)

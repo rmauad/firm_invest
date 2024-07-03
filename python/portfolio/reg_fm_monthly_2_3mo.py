@@ -1,13 +1,14 @@
 import pandas as pd
 import numpy as np
-from linearmodels.panel import PanelOLS
-
-# COME BACK TO THIS CODE WITH A MEASURE OF INTANGIBLE CAPITAL.
-# THE IMPACT OF LEVERAGE VARIATION ON STOCK RETURN IS NOT IMPACTED BY THE IMPLEMENATION OF ANTI-RECHARACTERIZATION LAWS.
+import matplotlib.pyplot as plt
+from linearmodels.asset_pricing import LinearFactorModel
+from linearmodels.panel.model import FamaMacBeth
+from statsmodels.stats.outliers_influence import variance_inflation_factor
 
 # Read the data from the feather file
 df = pd.read_feather('data/feather/ccm_monthly_filled.feather') #from crsp_merge_monthly.py
 betas = pd.read_feather('data/feather/df_reg_beta.feather') #from calc_beta.py
+#testing changes
 
 # df.shape
 # df.head(50)
@@ -18,69 +19,52 @@ betas = pd.read_feather('data/feather/df_reg_beta.feather') #from calc_beta.py
 # Generate leverage and drop NAs based on the leverage
 df = (df
       .assign(year = df['date_ret'].dt.year)
-      .query('year >= 1975 and ceqq > 0')
-      .assign(tang_at = df['ppentq']/df['atq']))
-
-
+      .query('year >= 1975 and ceqq > 0'))
 # df.shape
 df = (pd.merge(df, betas, how = 'left', on = ['GVKEY', 'year_month']))
 df['debt_at'] = (df['dlttq'] + df['dlcq']) / df['atq']
 df['roe'] = df['niq'] / df['ceqq']
 df['roa'] = df['niq'] / df['atq']
-df_new = (df
+df = (df
       #.assign(GVKEY = df['GVKEY'].astype('Int64'))
       .assign(bm = df['ceqq']*1000 / (np.abs(df['PRC'])*df['SHROUT'])) #ceqq is in millions and shrout is in thousands
       .assign(ln_ceqq = np.log(df['ceqq']))
       .assign(RET = pd.to_numeric(df['RET'], errors='coerce'))
       .assign(year_month = df['date_ret'].dt.to_period('M'))
-      #.assign(d_tx_la_97_03 = (df['state'] == 'TX') | (df['state'] == 'LA') & (df['year'] >= 1997) & (df['year'] <= 2003))
-      .assign(d_tx_97 = lambda x: (x['state'] == 'TX') & (x['year_month'] >= '1997-01') & (x['year_month']<= '2003-12'))
-      #.assign(d_tx_97 = lambda x: (x['state'] == 'TX') & (x['year_month'] >= '2003-12'))
-)
+      )
 
 # df[['GVKEY', 'year_month', 'bm']].head(50)
 
 # df[['date_ret', 'year_month',  'RET']].head(50)
-df_new['year_month'] = df_new['year_month'].dt.to_timestamp()
+df['year_month'] = df['year_month'].dt.to_timestamp()
+df.set_index(['GVKEY', 'year_month'], inplace=True)
+df = (df
+      .assign(ret_aux = 1 + df['RET'])
+      .assign(ret_aux_lead1 = lambda x: x.groupby('GVKEY')['ret_aux'].shift(-1))
+      .assign(ret_aux_lead2 = lambda x: x.groupby('GVKEY')['ret_aux'].shift(-2))
+      .assign(ret_2mo = lambda x: (x['ret_aux']*x['ret_aux_lead1']) - 1)
+      .assign(ret_2mo_lead1 = lambda x: x.groupby('GVKEY')['ret_2mo'].shift(-1))
+      .assign(ret_3mo = lambda x: (x['ret_aux']*x['ret_aux_lead1']*x['ret_aux_lead2']) - 1)
+      .assign(ret_3mo_lead1 = lambda x: x.groupby('GVKEY')['ret_3mo'].shift(-1))      
+      .drop(columns=['ret_aux', 'ret_aux_lead1', 'ret_aux_lead2'])       
+      )
+# df[['RET', 'ret_aux', 'ret_aux_lead1', 'ret_aux_lead2', 'ret_3mo', 'ret_3mo_lead1']].head(50)
 
-# Creating terciles based on physical capital over total assets
-def create_terciles(group):
-    group['tercile'] = pd.qcut(group['tang_at'], q=3, labels=[1, 2, 3])
-    return group
-
-df_quantiles = df_new.groupby('year_month').apply(create_terciles)
-df_quantiles = df_quantiles.reset_index(drop=True)
-df_quantiles = (df_quantiles
-                .assign(hpk = (df_quantiles['tercile'] == 3))
-                )
-# df_quantiles[['GVKEY', 'year_month', 'hpk', 'tercile']].head(50)
-# df_sorted = df_quantiles.sort_values(by=['year_month', 'tercile'])
-# df_sorted[['GVKEY', 'year_month', 'tang_at', 'tercile']].head(50)
-
-# Creating variables for the regressions
-df_quantiles.set_index(['GVKEY', 'year_month'], inplace=True)
-df_quantiles['RET_lead1'] = df_quantiles.groupby('GVKEY')['RET'].shift(-1)
+df['RET_lead1'] = df.groupby('GVKEY')['RET'].shift(-1)
 # df.head(50)
-df_quantiles['debt_at_lag1'] = df_quantiles.groupby('GVKEY')['debt_at'].shift(1)
-df_quantiles['d_debt_at'] = df_quantiles['debt_at'] - df_quantiles['debt_at_lag1']
-df_quantiles['roe_lag1'] = df_quantiles.groupby('GVKEY')['roe'].shift(1)
-df_quantiles['d_roe'] = df_quantiles['roe'] - df_quantiles['roe_lag1']
-df_quantiles['dummy'] = df_quantiles['d_tx_97'] * df_quantiles['hpk']
+df['debt_at_lag1'] = df.groupby('GVKEY')['debt_at'].shift(1)
+df['d_debt_at'] = df['debt_at'] - df['debt_at_lag1']
+df['roe_lag1'] = df.groupby('GVKEY')['roe'].shift(1)
+df['d_roe'] = df['roe'] - df['roe_lag1']
 #df_clean = df.dropna(subset=['d_debt_at', 'RET_lead1', 'ln_ceqq'])
 # df_clean = df.replace([np.inf, -np.inf], np.nan)
 # df.head(50)
 
-# df_reset = df.reset_index()
-# df_reset.loc[
-#     (df_reset['year_month'] == '1997-02') & (df_reset['state'] == 'TX'),
-#     ['year_month', 'GVKEY', 'state', 'dummyXd_debt_at', 'd_debt_at']
-# ].head(50)
-
-df_clean = df_quantiles.copy()
+df_clean = df.copy()
 df_clean['ln_ceqq'] = df_clean['ln_ceqq'].replace([np.inf, -np.inf], np.nan)
 df_clean['d_debt_at'] = df_clean['d_debt_at'].replace([np.inf, -np.inf], np.nan)
 df_clean['d_roe'] = df_clean['d_roe'].replace([np.inf, -np.inf], np.nan)
-df_clean_no_na = df_clean.dropna(subset=['dummy', 'RET_lead1', 'ln_ceqq', 'roa', 'beta', 'bm'])
+df_clean_no_na = df_clean.dropna(subset=['d_debt_at', 'ret_2mo_lead1', 'ln_ceqq', 'roa', 'beta', 'bm'])
 
 # df_clean_no_na.head(50)
 # df_clean_no_na['d_roe'].isna().sum()
@@ -88,18 +72,18 @@ df_clean_no_na = df_clean.dropna(subset=['dummy', 'RET_lead1', 'ln_ceqq', 'roa',
 # print(num_infs)
 
 ###################################
-# Running Panel OLS regressions
+# Running Fama MacBeth regressions
 ###################################
 
-dep = df_clean_no_na['RET_lead1']*100
-indep = df_clean_no_na[['hpk', 'ln_ceqq', 'roa', 'RET', 'beta', 'bm']]
+dep = df_clean_no_na['ret_2mo_lead1']*100
+indep = df_clean_no_na[['d_debt_at', 'ln_ceqq', 'roa', 'RET', 'beta', 'bm']]
 # df_reset = df_clean_no_na.reset_index()
 # df_reset['GVKEY'].nunique()
 # df_reset['year_month'].min()
 # df_reset.columns
 
 # Create the model and fit it
-mod = PanelOLS(dep, indep)
+mod = FamaMacBeth(dep, indep)
 res = mod.fit()
 
 # Print the results

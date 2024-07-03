@@ -11,11 +11,15 @@ from merge_functions import custom_fill
 # from data_functions import convert_to_datetime
 
 df_intan = pd.read_csv('data/csv/db_did.csv') # created by prep_db_did.py
-compustat_sel = pd.read_csv('data/csv/compustat_sel.csv') # from compustat_sel.R
+#compustat = pd.read_csv('data/csv/compustat_sel.csv') # from compustat_sel.R
+compustat = pd.read_csv("data/csv/comp_fundq.csv")
 
 ###################################################################################
 # Merging original Compustat with the dataframe with the intangible capital measure
 ###################################################################################
+compustat_sel = compustat[['datadate', 'rdq', 'GVKEY', 'sic', 
+                           'atq', 'dlcq', 'dlttq', 'ceqq',
+                           'state', 'niq', 'loq', 'ppentq']]
 
 df_intan_sel = df_intan[['datadate', 'GVKEY',  'org_cap_comp', 'atq']]
 
