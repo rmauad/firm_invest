@@ -20,6 +20,8 @@ df = (pd.merge(df, betas, how = 'left', on = ['GVKEY', 'year_month']))
 df['debt_at'] = (df['dlttq'] + df['dlcq']) / df['atq']
 df['roe'] = df['niq'] / df['ceqq']
 df['roa'] = df['niq'] / df['atq']
+
+# Change book-to-market ratio
 df = (df
       .assign(bm = df['ceqq']*1000 / (np.abs(df['PRC'])*df['SHROUT'])) #ceqq is in millions and shrout is in thousands
       .assign(ln_ceqq = np.log(df['ceqq']))
