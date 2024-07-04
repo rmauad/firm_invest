@@ -23,11 +23,14 @@ df['roa'] = df['niq'] / df['atq']
 
 # Change book-to-market ratio
 df = (df
-      .assign(bm = df['ceqq']*1000 / (np.abs(df['PRC'])*df['SHROUT'])) #ceqq is in millions and shrout is in thousands
+      .assign(ceqq_lag1 = df.groupby('GVKEY')['ceqq'].shift(1))
+      .assign(bm = lambda x: x['ceqq_lag1']*1000 / (np.abs(x['PRC'])*x['SHROUT'])) #ceqq is in millions and shrout is in thousands
       .assign(ln_ceqq = np.log(df['ceqq']))
       .assign(RET = pd.to_numeric(df['RET'], errors='coerce'))
       .assign(year_month = df['date_ret'].dt.to_period('M'))
       )
+
+# df[['GVKEY', 'year_month', 'ceqq', 'ceqq_lag1', 'PRC', 'SHROUT', 'bm']].tail(50)
 
 df['year_month'] = df['year_month'].dt.to_timestamp()
 df.set_index(['GVKEY', 'year_month'], inplace=True)
@@ -58,7 +61,7 @@ df_clean['d_roe'] = df_clean['d_roe'].replace([np.inf, -np.inf], np.nan)
 # df_clean_no_na = df_reset.dropna(subset=['d_debt_at', 'RET_lead1', 'ln_ceqq', 'roa', 'beta', 'bm'])
 # df_clean_no_na['year_month'].nunique()
 # df_clean_no_na['year_month'].max()
-# save = df_clean.to_feather('data/feather/df_fm.feather')
+save = df_clean.to_feather('data/feather/df_fm.feather')
 
 ###################################
 # Running Fama MacBeth regressions
