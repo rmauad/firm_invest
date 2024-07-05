@@ -15,12 +15,13 @@ betas = pd.read_feather('data/feather/df_reg_beta.feather') #from calc_beta.py
 # Generate leverage and drop NAs based on the leverage
 df = (df
       .assign(year = df['date_ret'].dt.year)
-      .query('year >= 1975 and ceqq > 0'))
+      .query('year >= 1980 and ceqq > 0'))
 # df.shape
 df = (pd.merge(df, betas, how = 'left', on = ['GVKEY', 'year_month']))
 df['debt_at'] = (df['dlttq'] + df['dlcq']) / df['atq']
 df['roe'] = df['niq'] / df['ceqq']
 df['roa'] = df['niq'] / df['atq']
+
 df_new = (df
       #.assign(GVKEY = df['GVKEY'].astype('Int64'))
       .assign(bm = df['ceqq']*1000 / (np.abs(df['PRC'])*df['SHROUT'])) #ceqq is in millions and shrout is in thousands
@@ -28,7 +29,14 @@ df_new = (df
       .assign(RET = pd.to_numeric(df['RET'], errors='coerce'))
       .assign(year_month = df['date_ret'].dt.to_period('M'))
       #.assign(d_tx_la_97_03 = (df['state'] == 'TX') | (df['state'] == 'LA') & (df['year'] >= 1997) & (df['year'] <= 2003))
-      .assign(d_tx_97 = lambda x: (x['state'] == 'TX') & (x['year_month'] >= '1997-01') & (x['year_month'] <= '1997-12'))
+      .assign(dummy_law = lambda x: (
+        ((x['state'] == 'TX') | (x['state'] == 'LA')) & 
+        (x['year_month'] >= '1997-01') & 
+        (x['year_month'] <= '1997-12') | 
+        ((x['state'] == 'AL') & 
+         (x['year_month'] >= '2001-01') & 
+         (x['year_month'] <= '2001-12'))
+    ).astype(int))
 )
 
 # df[['GVKEY', 'year_month', 'bm']].head(50)

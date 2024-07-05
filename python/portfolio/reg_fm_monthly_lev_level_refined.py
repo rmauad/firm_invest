@@ -6,6 +6,8 @@ import sys
 sys.path.append('code/firm_invest/python/portfolio/')
 from report_functions import add_stars
 
+# PASTE THE OUTPUT IN CHATGPT AND ASK FOR A LATEX CODE PLACING THE T-STATS BELOW EACH COEFFICIENT
+
 # Read the data from the feather file
 df = pd.read_feather('data/feather/ccm_monthly_filled.feather') #from crsp_merge_monthly.py
 betas = pd.read_feather('data/feather/df_reg_beta.feather') #from calc_beta.py
@@ -33,25 +35,33 @@ df = (df
 df['year_month'] = df['year_month'].dt.to_timestamp()
 df.set_index(['GVKEY', 'year_month'], inplace=True)
 
-df = (df
+df['terc_lev'] = df.groupby('year_month')['debt_at'].transform(
+    lambda x: pd.qcut(x, 3, labels=['Low', 'Medium', 'High'])
+)
+
+df_new = (df
       .assign(ret_aux = 1 + df['RET'])
       .assign(ret_aux_lead1 = lambda x: x.groupby('GVKEY')['ret_aux'].shift(-1))
       .assign(ret_aux_lead2 = lambda x: x.groupby('GVKEY')['ret_aux'].shift(-2))
       .assign(ret_2mo = lambda x: (x['ret_aux']*x['ret_aux_lead1']) - 1)
       .assign(ret_2mo_lead1 = lambda x: x.groupby('GVKEY')['ret_2mo'].shift(-1))
       .assign(ret_3mo = lambda x: (x['ret_aux']*x['ret_aux_lead1']*x['ret_aux_lead2']) - 1)
-      .assign(ret_3mo_lead1 = lambda x: x.groupby('GVKEY')['ret_3mo'].shift(-1))      
+      .assign(ret_3mo_lead1 = lambda x: x.groupby('GVKEY')['ret_3mo'].shift(-1))
+      .assign(hlev = lambda x: x['terc_lev'] == 'High')
+      .assign(llev = lambda x: x['terc_lev'] == 'Low')       
       .drop(columns=['ret_aux', 'ret_aux_lead1', 'ret_aux_lead2'])       
       )
+
 # df[['RET', 'ret_aux', 'ret_aux_lead1', 'ret_aux_lead2', 'ret_3mo', 'ret_3mo_lead1']].head(50)
 
-df['RET_lead1'] = df.groupby('GVKEY')['RET'].shift(-1)
-df['debt_at_lag1'] = df.groupby('GVKEY')['debt_at'].shift(1)
-df['d_debt_at'] = df['debt_at'] - df['debt_at_lag1']
-df['roe_lag1'] = df.groupby('GVKEY')['roe'].shift(1)
-df['d_roe'] = df['roe'] - df['roe_lag1']
+df_new['RET_lead1'] = df_new.groupby('GVKEY')['RET'].shift(-1)
+df_new['debt_at_lag1'] = df_new.groupby('GVKEY')['debt_at'].shift(1)
+df_new['d_debt_at'] = df_new['debt_at'] - df_new['debt_at_lag1']
+df_new['roe_lag1'] = df_new.groupby('GVKEY')['roe'].shift(1)
+df_new['d_roe'] = df_new['roe'] - df_new['roe_lag1']
+df_new['dummyXd_debt_at'] = df_new['d_debt_at'] * df_new['hlev']
 
-df_clean = df.copy()
+df_clean = df_new.copy()
 df_clean['ln_ceqq'] = df_clean['ln_ceqq'].replace([np.inf, -np.inf], np.nan)
 df_clean['d_debt_at'] = df_clean['d_debt_at'].replace([np.inf, -np.inf], np.nan)
 df_clean['d_roe'] = df_clean['d_roe'].replace([np.inf, -np.inf], np.nan)
@@ -59,7 +69,7 @@ df_clean['d_roe'] = df_clean['d_roe'].replace([np.inf, -np.inf], np.nan)
 # df_clean_no_na = df_reset.dropna(subset=['d_debt_at', 'RET_lead1', 'ln_ceqq', 'roa', 'beta', 'bm'])
 # df_clean_no_na['year_month'].nunique()
 # df_clean_no_na['year_month'].max()
-save = df_clean.to_feather('data/feather/df_fm.feather')
+# save = df_clean.to_feather('data/feather/df_fm.feather')
 
 ###################################
 # Running Fama MacBeth regressions
@@ -67,11 +77,14 @@ save = df_clean.to_feather('data/feather/df_fm.feather')
 
 dep_vars = ['RET_lead1', 'ret_2mo_lead1', 'ret_3mo_lead1']
 # dep = df_clean_no_na['ret_2mo_lead1']*100
-indep_vars = ['d_debt_at', 'ln_ceqq', 'roa', 'RET', 'beta']
+indep_vars = ['d_debt_at', 'dummyXd_debt_at', 'hlev', 'ln_ceqq', 'roa', 'RET', 'beta']
 
 # Create a dictionary for variable labels
 variable_labels = {
     'd_debt_at': 'Leverage Change',
+    'dummyXd_debt_at': 'High Leverage X Leverage Change',
+    'hlev': 'High Leverage dummy',    
+    'llev': 'Low Leverage dummy',
     'ln_ceqq': 'Log of Equity',
     'roa': 'Return on Assets',
     'RET': 'Previous month return',

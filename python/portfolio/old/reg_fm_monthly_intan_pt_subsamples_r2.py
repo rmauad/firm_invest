@@ -7,7 +7,7 @@ sys.path.append('code/firm_invest/python/portfolio/')
 from report_functions import add_stars
 
 # Read the data from the feather file
-df = pd.read_feather('data/feather/ccm_monthly_filled.feather') #from crsp_merge_monthly.py
+df = pd.read_feather('data/feather/df_intan_pt.feather') #from compustat_pt_merge.py
 betas = pd.read_feather('data/feather/df_reg_beta.feather') #from calc_beta.py
 
 df = (df
@@ -16,6 +16,7 @@ df = (df
 # df.shape
 df = (pd.merge(df, betas, how = 'left', on = ['GVKEY', 'year_month']))
 df['debt_at'] = (df['dlttq'] + df['dlcq']) / df['atq']
+df['intan_pt_at'] = df['intan_pt'] / df['atq']
 df['roe'] = df['niq'] / df['ceqq']
 df['roa'] = df['niq'] / df['atq']
 
@@ -33,25 +34,54 @@ df = (df
 df['year_month'] = df['year_month'].dt.to_timestamp()
 df.set_index(['GVKEY', 'year_month'], inplace=True)
 
-df = (df
+df['terc_lev'] = df.groupby('year_month')['debt_at'].transform(
+    lambda x: pd.qcut(x, 3, labels=['Low', 'Medium', 'High'])
+)
+
+# df['ter_intan'] = df.groupby('year_month')['intan_pt_at'].transform(
+#     lambda x: pd.qcut(x, 3, labels=[1, 2, 3]) 
+# )
+
+df['med_intan'] = pd.qcut(df['intan_pt_at'], 2, labels=[1, 2])
+df['ter_intan'] = pd.qcut(df['intan_pt_at'], 3, labels=[1, 2, 3])
+df['qua_intan'] = pd.qcut(df['intan_pt_at'], 4, labels=[1, 2, 3, 4])
+
+df['quart_intan'] = df.groupby('year_month')['intan_pt_at'].transform(
+    lambda x: pd.qcut(x, 4, labels=[1, 2, 3, 4]) 
+)
+
+df['dec_intan'] = df.groupby('year_month')['intan_pt_at'].transform(
+    lambda x: pd.qcut(x, 10, labels=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]) 
+)
+
+# df[['intan_pt_at', 'quart_intan']].head(50)
+df_new = (df
       .assign(ret_aux = 1 + df['RET'])
       .assign(ret_aux_lead1 = lambda x: x.groupby('GVKEY')['ret_aux'].shift(-1))
       .assign(ret_aux_lead2 = lambda x: x.groupby('GVKEY')['ret_aux'].shift(-2))
       .assign(ret_2mo = lambda x: (x['ret_aux']*x['ret_aux_lead1']) - 1)
       .assign(ret_2mo_lead1 = lambda x: x.groupby('GVKEY')['ret_2mo'].shift(-1))
       .assign(ret_3mo = lambda x: (x['ret_aux']*x['ret_aux_lead1']*x['ret_aux_lead2']) - 1)
-      .assign(ret_3mo_lead1 = lambda x: x.groupby('GVKEY')['ret_3mo'].shift(-1))      
+      .assign(ret_3mo_lead1 = lambda x: x.groupby('GVKEY')['ret_3mo'].shift(-1))
+      .assign(hlev = lambda x: x['terc_lev'] == 'High')
+      .assign(llev = lambda x: x['terc_lev'] == 'Low')
+      .assign(hint = lambda x: x['qua_intan'] == 4)
+      .assign(lint = lambda x: x['qua_intan'] == 1)                
       .drop(columns=['ret_aux', 'ret_aux_lead1', 'ret_aux_lead2'])       
       )
-# df[['RET', 'ret_aux', 'ret_aux_lead1', 'ret_aux_lead2', 'ret_3mo', 'ret_3mo_lead1']].head(50)
 
-df['RET_lead1'] = df.groupby('GVKEY')['RET'].shift(-1)
-df['debt_at_lag1'] = df.groupby('GVKEY')['debt_at'].shift(1)
-df['d_debt_at'] = df['debt_at'] - df['debt_at_lag1']
-df['roe_lag1'] = df.groupby('GVKEY')['roe'].shift(1)
-df['d_roe'] = df['roe'] - df['roe_lag1']
+#df_new[['RET', 'ret_aux', 'ret_aux_lead1', 'ret_aux_lead2', 'ret_3mo', 'ret_3mo_lead1']].head(50)
+# df_new[['hint', 'quart_intan']][df_new['quart_intan'] == 4].tail(50)
+df_int = df_new.query('lint == True')
 
-df_clean = df.copy()
+df_int['RET_lead1'] = df_int.groupby('GVKEY')['RET'].shift(-1)
+df_int['debt_at_lag1'] = df_int.groupby('GVKEY')['debt_at'].shift(1)
+df_int['d_debt_at'] = df_int['debt_at'] - df_int['debt_at_lag1']
+df_int['roe_lag1'] = df_int.groupby('GVKEY')['roe'].shift(1)
+df_int['d_roe'] = df_int['roe'] - df_int['roe_lag1']
+#df_int['dummyXdebt_at'] = df_int['debt_at'] * df_int['lint']
+
+df_clean = df_int.copy()
 df_clean['ln_ceqq'] = df_clean['ln_ceqq'].replace([np.inf, -np.inf], np.nan)
 df_clean['d_debt_at'] = df_clean['d_debt_at'].replace([np.inf, -np.inf], np.nan)
 df_clean['d_roe'] = df_clean['d_roe'].replace([np.inf, -np.inf], np.nan)
@@ -59,7 +89,7 @@ df_clean['d_roe'] = df_clean['d_roe'].replace([np.inf, -np.inf], np.nan)
 # df_clean_no_na = df_reset.dropna(subset=['d_debt_at', 'RET_lead1', 'ln_ceqq', 'roa', 'beta', 'bm'])
 # df_clean_no_na['year_month'].nunique()
 # df_clean_no_na['year_month'].max()
-save = df_clean.to_feather('data/feather/df_fm.feather')
+# save = df_clean.to_feather('data/feather/df_fm.feather')
 
 ###################################
 # Running Fama MacBeth regressions
@@ -72,6 +102,13 @@ indep_vars = ['d_debt_at', 'ln_ceqq', 'roa', 'RET', 'beta']
 # Create a dictionary for variable labels
 variable_labels = {
     'd_debt_at': 'Leverage Change',
+    'debt_at': 'Leverage',
+    'dummyXd_debt_at': 'Low intan/at X Leverage Change',
+    'dummyXdebt_at': 'Low intan/at X Leverage',    
+    'hlev': 'High Leverage dummy',    
+    'llev': 'Low Leverage dummy',
+    'hint': 'High intangible/assets dummy',
+    'lint': 'Low intangible/assets dummy',
     'ln_ceqq': 'Log of Equity',
     'roa': 'Return on Assets',
     'RET': 'Previous month return',
@@ -82,6 +119,7 @@ variable_labels = {
 results = {}
 obs_counts = {}
 firm_counts = {}
+r_squared = {}
 
 for dep_var in dep_vars:
     df_clean_no_na = df_clean.dropna(subset=[dep_var] + indep_vars)
@@ -93,6 +131,7 @@ for dep_var in dep_vars:
     obs_counts[dep_var] = res.nobs
     df_reset = df_clean_no_na.reset_index()
     firm_counts[dep_var] = df_reset['GVKEY'].nunique()
+    r_squared[dep_var] = res.rsquared
 
 # Extract coefficients and t-stats into a DataFrame
 data = {'Variable': indep_vars}
@@ -111,10 +150,11 @@ for _, row in dataframe.iterrows():
     rows.append([row['Variable']] + [row[f'{dep_var}_Coeff'] for dep_var in dep_vars])
     rows.append([''] + [f"({row[f'{dep_var}_t']})" for dep_var in dep_vars])
 
-# Add rows for number of observations and number of unique firms
+# Add rows for number of observations, number of unique firms, and R-squared
 obs_firms_data = [
     ['Observations'] + [obs_counts[dep_var] for dep_var in dep_vars],
-    ['Number of Firms'] + [firm_counts[dep_var] for dep_var in dep_vars]
+    ['Number of Firms'] + [firm_counts[dep_var] for dep_var in dep_vars],
+    ['R-squared'] + [round(r_squared[dep_var], 3) for dep_var in dep_vars]
 ]
 
 # Combine all rows
