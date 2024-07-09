@@ -6,17 +6,17 @@ import sys
 sys.path.append('code/firm_invest/python/portfolio/')
 from report_functions import add_stars
 
-# PASTE THE OUTPUT IN CHATGPT AND ASK FOR A LATEX CODE PLACING THE T-STATS BELOW EACH COEFFICIENT
-
 # Read the data from the feather file
 df = pd.read_feather('data/feather/df_intan_pt.feather') #from compustat_pt_merge.py
 betas = pd.read_feather('data/feather/df_reg_beta.feather') #from calc_beta.py
-
+# df.shape
 df = (df
       .assign(year = df['date_ret'].dt.year)
-      .query('year >= 1980 and ceqq > 0'))
+      .query('year >= 1980 and ceqq > 0 and ltq >= 0'))
+# df_new.shape
 # df.shape
 df = (pd.merge(df, betas, how = 'left', on = ['GVKEY', 'year_month']))
+df['lev'] = df['ltq'] / df['atq']
 df['debt_at'] = (df['dlttq'] + df['dlcq']) / df['atq']
 df['intan_pt_at'] = df['intan_pt'] / df['atq']
 df['roe'] = df['niq'] / df['ceqq']
@@ -82,7 +82,7 @@ df_clean['d_roe'] = df_clean['d_roe'].replace([np.inf, -np.inf], np.nan)
 # df_clean_no_na = df_reset.dropna(subset=['d_debt_at', 'RET_lead1', 'ln_ceqq', 'roa', 'beta', 'bm'])
 # df_clean_no_na['year_month'].nunique()
 # df_clean_no_na['year_month'].max()
-# save = df_clean.to_feather('data/feather/df_fm.feather')
+save = df_clean.to_feather('data/feather/df_fm.feather')
 
 ###################################
 # Running Fama MacBeth regressions

@@ -90,7 +90,7 @@ ccm_monthly_no_dup = ccm_monthly[~ccm_monthly.duplicated('GVKEY_year_month', kee
 # ccm_monthly_no_dup.head(50)
 
 # ccm_monthly_no_dup.set_index(['GVKEY', 'year_month'], inplace=True)
-columns_fill = ['atq', 'ceqq', 'dlttq', 'dlcq', 'niq', 'sic', 'state', 'ppentq']
+columns_fill = ['atq', 'ceqq', 'dlttq', 'dlcq', 'niq', 'sic', 'state', 'ppentq', 'ltq']
 
 # Fill forward the missing values within each group
 ccm_monthly_filled = ccm_monthly_no_dup.copy()

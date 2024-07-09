@@ -1,16 +1,18 @@
 import pandas as pd
 from tabulate import tabulate
 
-df = pd.read_feather('data/feather/df_fm.feather')
-
-df_vars = ['debt_at', 'd_debt_at', 'ln_ceqq', 'roa', 'beta', 'bm']
+df = pd.read_feather('data/feather/df_fm.feather') # from prep_fm.py
+# df_vars[['debt_at', 'lev_new']].tail(50)
+df_vars = ['me', 'lev', 'd_lev', 'bm', 'ln_at']
 variable_labels = {
-    'debt_at': 'Leverage',
-    'd_debt_at': 'Leverage change',
+    'lev': 'Leverage',
+    'd_lev': 'Leverage change',
+    'd_debt_at': 'Debt/assets change',
     'ln_ceqq': 'Log(equity)',
     'roa': 'Return on Assets',
     'beta': 'Beta',
-    'bm': 'Book-to-Market Ratio'
+    'bm': 'Book-to-Market Ratio',
+    'me': 'Market value of equity'
 }
 
 mean = df[df_vars].mean()

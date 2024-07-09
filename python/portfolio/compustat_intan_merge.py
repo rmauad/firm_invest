@@ -14,12 +14,14 @@ df_intan = pd.read_csv('data/csv/db_did.csv') # created by prep_db_did.py
 #compustat = pd.read_csv('data/csv/compustat_sel.csv') # from compustat_sel.R
 compustat = pd.read_csv("data/csv/comp_fundq.csv")
 
+# sorted_columns = sorted(compustat.columns)
+# print(sorted_columns)
 ###################################################################################
 # Merging original Compustat with the dataframe with the intangible capital measure
 ###################################################################################
 compustat_sel = compustat[['datadate', 'rdq', 'GVKEY', 'sic', 
                            'atq', 'dlcq', 'dlttq', 'ceqq',
-                           'state', 'niq', 'loq', 'ppentq']]
+                           'state', 'niq', 'ltq', 'ppentq']]
 
 df_intan_sel = df_intan[['datadate', 'GVKEY',  'org_cap_comp', 'atq']]
 
